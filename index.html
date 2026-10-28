@@ -145,7 +145,7 @@ button:focus-visible,input:focus-visible,summary:focus-visible{outline:3px solid
 
 /* header */
 header.top{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
-.brand{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap}
+.brand{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin-right:auto;min-width:0}
 .logo{font-family:var(--display);font-size:clamp(28px,5vw,44px);line-height:1;letter-spacing:.01em;
   background:linear-gradient(90deg,var(--gold),var(--pink) 55%,var(--cyan));-webkit-background-clip:text;background-clip:text;color:transparent}
 .tag{font-family:var(--cond);font-weight:500;color:var(--muted);text-transform:uppercase;letter-spacing:.14em;font-size:14px}
@@ -190,6 +190,7 @@ header.top{display:flex;align-items:center;justify-content:space-between;gap:12p
 .rbtn:hover:not(:disabled){background:var(--panel2)} .rbtn:disabled{opacity:.35;cursor:not-allowed}
 .btn.spin{font-family:var(--display);font-weight:400;font-size:22px;padding:18px;border-radius:14px;background:linear-gradient(90deg,var(--gold),#ffb020);box-shadow:0 6px 0 #a36a00,0 10px 30px rgba(255,200,58,.25)}
 .btn.spin:active:not(:disabled){transform:translateY(4px);box-shadow:0 2px 0 #a36a00}
+.desk-top{display:flex;flex-direction:column;gap:16px}
 details.odds{border-top:1px solid var(--line);padding-top:12px}
 details.odds summary{font-family:var(--cond);font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);cursor:pointer}
 .oddsgrid{display:flex;flex-direction:column;gap:12px;margin-top:12px;max-height:420px;overflow:auto;padding-right:4px}
@@ -360,15 +361,44 @@ details.odds summary{font-family:var(--cond);font-weight:700;text-transform:uppe
 .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(18px + env(safe-area-inset-bottom,0px));z-index:60;background:#000;border:2px solid var(--pink);color:var(--fg);padding:10px 16px;border-radius:12px;max-width:calc(100% - 32px);box-shadow:0 10px 30px rgba(0,0,0,.5);font-weight:600}
 #confetti{position:fixed;inset:0;pointer-events:none;z-index:70;width:100%;height:100%}
 @media (prefers-reduced-motion:reduce){.sheet,.card.flipin{animation:none}}
+
+/* Phones: compact header, and a wheel sized so the wheel and the spin button fit on one screen */
+@media (max-width:880px){
+  body{padding-block:10px 40px}
+  .wrap{gap:10px}
+  header.top{gap:8px 10px}
+  .tag{display:none}
+  .logo{font-size:clamp(22px,7.2vw,34px)}
+  .jp{padding:4px 10px;font-size:13px}
+  .jp b{font-size:16px}
+  .top-actions{flex-basis:100%;gap:6px}
+  .top-actions .btn.sm{padding:6px 10px;font-size:13px;letter-spacing:.04em}
+  .stage{gap:14px}
+  .wheelcol{gap:20px}
+  .topslot{padding:4px 6px 4px 12px;gap:8px}
+  .topslot .lbl{font-size:13px}
+  .topslot .chip{font-size:13px;padding:3px 8px}
+  .topslot .mult{font-size:16px;padding:1px 10px}
+  .wheelbox{width:min(100%,max(240px,calc(100vh - 330px - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px))))}
+  @supports (height:100svh){.wheelbox{width:min(100%,max(240px,calc(100svh - 330px - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px))))}}
+  .desk{padding:14px;gap:12px}
+  .desk-top{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px 12px;align-items:end}
+  .desk-top>.btn.spin,.desk-top>p{grid-column:1/-1}
+  .desk-top>.btn.spin{padding:14px;font-size:20px}
+  .spinner-name{font-size:26px}
+  .bet{gap:8px}
+  .bet b{font-size:34px}
+  .rbtn{width:42px;height:42px}
+}
 </style>
 
 <div class="wrap">
   <header class="top">
     <div class="brand"><div class="logo">Crazy Sips</div><div class="tag">Spin · drink · hand out</div></div>
+    <div class="jp" title="Grows by 1 sip after every full round"><span>Jackpot</span><b id="jpVal">5</b></div>
     <div class="top-actions">
-      <div class="jp" title="Grows by 1 sip after every full round"><span>Jackpot</span><b id="jpVal">5</b></div>
-      <button class="btn ghost sm" id="statsBtn">Scoreboard</button>
-      <button class="btn ghost sm" id="setBtn">Players &amp; settings</button>
+      <button class="btn ghost sm" id="statsBtn">Scores</button>
+      <button class="btn ghost sm" id="setBtn">Settings</button>
       <button class="btn ghost sm" id="muteBtn">Sound on</button>
     </div>
   </header>
@@ -382,7 +412,7 @@ details.odds summary{font-family:var(--cond);font-weight:700;text-transform:uppe
         <div class="wheelbox"><div class="pointer"></div><canvas id="wheel"></canvas><div class="hub"><span>CRAZY<br>SIPS</span></div></div>
       </div>
       <div class="desk">
-        <div id="deskTop" style="display:flex;flex-direction:column;gap:16px"></div>
+        <div id="deskTop" class="desk-top"></div>
         <details class="odds"><summary>Wheel odds &amp; outcomes</summary><div class="oddsgrid" id="odds"></div></details>
       </div>
     </div>
