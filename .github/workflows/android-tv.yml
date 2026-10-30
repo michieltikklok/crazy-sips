@@ -1,0 +1,69 @@
+name: Android TV APK
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'android/**'
+      - '.github/workflows/android-tv.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: android-tv
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Signing key
+        env:
+          KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_B64 }}
+        run: |
+          if [ -n "$KEYSTORE_B64" ]; then
+            echo "$KEYSTORE_B64" | base64 -d > android/release.keystore
+            echo "Signing with the release key from the ANDROID_KEYSTORE_B64 secret"
+          else
+            echo "::warning::No ANDROID_KEYSTORE_B64 secret, so the APK is signed with the cached debug key"
+          fi
+
+      - name: Keep the debug key between builds
+        uses: actions/cache@v4
+        with:
+          path: ~/.android/debug.keystore
+          key: android-debug-keystore
+
+      - name: Build APK
+        working-directory: android
+        env:
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+        run: ./gradlew --no-daemon assembleRelease -PversionCode=${{ github.run_number }}
+
+      - name: Name the APK
+        run: cp android/app/build/outputs/apk/release/app-release.apk crazy-sips-tv.apk
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: crazy-sips-tv
+          path: crazy-sips-tv.apk
+
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "tv-${{ github.run_number }}" crazy-sips-tv.apk \
+            --title "Crazy Sips for Android TV (build ${{ github.run_number }})" \
+            --notes "Sideload on Android TV / Google TV. The newest build is always at https://github.com/${{ github.repository }}/releases/latest/download/crazy-sips-tv.apk" \
+            --latest

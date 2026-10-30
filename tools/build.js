@@ -4,6 +4,7 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const { chromium } = require('playwright');
+const { ART_SOURCE } = require('./art');
 
 const ROOT = path.resolve(__dirname, '..');
 const SRC = path.join(ROOT, 'src', 'crazy-sips.html');
@@ -111,33 +112,15 @@ const ICONS = [
 async function renderIcons() {
   const browser = await chromium.launch();
   const page = await browser.newPage();
+  await page.addScriptTag({ content: ART_SOURCE });
   for (const [name, size, r] of ICONS) {
-    const data = await page.evaluate(({ size, r, bg }) => {
+    const data = await page.evaluate(({ size, r }) => {
       const c = document.createElement('canvas'); c.width = c.height = size;
-      const x = c.getContext('2d'), S = size;
-      const g = x.createRadialGradient(S / 2, S * 0.15, 0, S / 2, S * 0.5, S * 0.75);
-      g.addColorStop(0, '#2c1b72'); g.addColorStop(1, bg);
-      x.fillStyle = g; x.fillRect(0, 0, S, S);
-      const cx = S / 2, cy = S * 0.53, R = S * r;
-      const cols = ['#2f7bff', '#ffc83a', '#ff3d8b', '#11a39a', '#9a55ff', '#2ad4ff', '#e8590c', '#3fe08f', '#2f7bff', '#ffc83a', '#ff3d8b', '#d9dceb', '#9a55ff', '#2ad4ff', '#e8590c', '#3fe08f'];
-      const a = Math.PI * 2 / cols.length;
-      x.save(); x.shadowColor = 'rgba(255,61,139,.55)'; x.shadowBlur = S * 0.08;
-      x.beginPath(); x.arc(cx, cy, R * 1.09, 0, Math.PI * 2); x.fillStyle = '#ffc83a'; x.fill(); x.restore();
-      x.beginPath(); x.arc(cx, cy, R * 1.03, 0, Math.PI * 2); x.fillStyle = '#2a2168'; x.fill();
-      cols.forEach((col, i) => {
-        const a0 = -Math.PI / 2 + i * a - a / 2;
-        x.beginPath(); x.moveTo(cx, cy); x.arc(cx, cy, R, a0, a0 + a); x.closePath(); x.fillStyle = col; x.fill();
-        x.strokeStyle = 'rgba(10,6,30,.55)'; x.lineWidth = Math.max(1, S / 160); x.stroke();
-      });
-      const hub = x.createRadialGradient(cx - R * .1, cy - R * .12, 0, cx, cy, R * .34);
-      hub.addColorStop(0, '#3d2f96'); hub.addColorStop(1, '#120c33');
-      x.beginPath(); x.arc(cx, cy, R * .32, 0, Math.PI * 2); x.fillStyle = hub; x.fill();
-      x.lineWidth = R * .07; x.strokeStyle = '#ffc83a'; x.stroke();
-      const pw = R * .26, ph = R * .38, top = cy - R * 1.2;
-      x.beginPath(); x.moveTo(cx - pw, top); x.lineTo(cx + pw, top); x.lineTo(cx, top + ph); x.closePath();
-      x.fillStyle = '#ffc83a'; x.shadowColor = 'rgba(0,0,0,.5)'; x.shadowBlur = S * .02; x.shadowOffsetY = S * .008; x.fill();
+      const x = c.getContext('2d');
+      drawBackground(x, size, size);
+      drawWheel(x, size / 2, size * 0.53, size * r);
       return c.toDataURL('image/png');
-    }, { size, r, bg: BG });
+    }, { size, r });
     fs.writeFileSync(path.join(OUT, 'icons', name), Buffer.from(data.split(',')[1], 'base64'));
   }
   await browser.close();

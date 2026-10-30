@@ -1,0 +1,48 @@
+plugins {
+    id 'com.android.application'
+}
+
+android {
+    namespace 'com.michieltikklok.crazysips'
+    compileSdk 35
+
+    defaultConfig {
+        applicationId 'com.michieltikklok.crazysips'
+        minSdk 21
+        targetSdk 35
+        // CI passes the workflow run number so every build installs over the previous one.
+        versionCode((project.findProperty('versionCode') ?: '1') as int)
+        versionName "1.0.${project.findProperty('versionCode') ?: '1'}"
+    }
+
+    // CI writes release.keystore from the ANDROID_KEYSTORE_B64 secret. Without it the
+    // build is signed with the debug key, which the workflow keeps cached between runs.
+    def releaseKeystore = rootProject.file('release.keystore')
+    signingConfigs {
+        release {
+            if (releaseKeystore.exists()) {
+                storeFile releaseKeystore
+                storePassword System.getenv('ANDROID_KEYSTORE_PASSWORD')
+                keyAlias 'crazysips'
+                keyPassword System.getenv('ANDROID_KEYSTORE_PASSWORD')
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            signingConfig releaseKeystore.exists() ? signingConfigs.release : signingConfigs.debug
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+
+    androidResources {
+        // Keep the web game's files byte-for-byte; fonts are already compressed.
+        noCompress 'woff2'
+    }
+}
