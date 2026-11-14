@@ -358,6 +358,31 @@ details.odds summary{font-family:var(--cond);font-weight:700;text-transform:uppe
 .cwheel .pointer{border-top-color:var(--red);top:-12px;border-left-width:13px;border-right-width:13px;border-top-width:28px}
 .cwheel .hub{inset:40%;font-size:12px;border-color:var(--red);color:var(--red)}
 
+/* drag race */
+.sheet.wide{max-width:920px}
+.grid-cars{display:grid;grid-template-columns:repeat(auto-fill,minmax(132px,1fr));gap:8px}
+.gc{background:var(--bg2);border:1px solid var(--line);border-radius:12px;padding:8px 10px;display:flex;flex-direction:column;gap:2px;min-width:0}
+.gc b{overflow-wrap:anywhere}
+.gc canvas{width:100%;height:auto;display:block;opacity:.55}
+.gc-car{font-family:var(--cond);font-weight:700;text-transform:uppercase;letter-spacing:.06em;font-size:14px;color:var(--muted)}
+.gc-odds{font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
+.gc.locked{border-color:var(--gold)}
+.gc.locked canvas{opacity:1}
+.gc.locked .gc-car{color:var(--fg)}
+.gc.duster{border-color:#b3a07a;background:#2b2416;animation:shake .55s}
+.gc.duster .gc-car{color:#d9c48f}
+@keyframes shake{0%,100%{transform:none}20%{transform:translateX(-6px) rotate(-1.5deg)}40%{transform:translateX(6px) rotate(1.5deg)}60%{transform:translateX(-4px)}80%{transform:translateX(4px)}}
+@media (max-width:520px){.grid-cars{grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}.gc{padding:6px 7px}.gc b{font-size:14px}.gc-car{font-size:12px;letter-spacing:.03em}.gc-odds{font-size:11px}}
+.race-box{display:flex;flex-direction:column;gap:12px}
+.race-box:empty{display:none}
+.race{display:block;width:100%;border-radius:12px;background:#0b0920}
+.podium{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
+.podium li{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:10px;align-items:center;padding:8px 12px;background:var(--bg2);border:1px solid transparent;border-radius:8px}
+.podium li.win{background:#000;border-color:var(--gold)}
+.podium li.last{background:#3d0010;border-color:var(--red)}
+.podium .pos{font-family:var(--display);font-size:18px;color:var(--gold);min-width:1.4em}
+.podium .t{font-variant-numeric:tabular-nums;color:var(--muted);font-size:14px}
+
 .bidbox{display:flex;flex-direction:column;gap:14px;align-items:center;text-align:center;padding:12px;background:var(--bg2);border-radius:14px}
 .bidlist{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
 .bidlist li{display:flex;justify-content:space-between;padding:8px 12px;background:var(--bg2);border-radius:8px}
@@ -461,8 +486,8 @@ const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
 const KIND={house:'Miss',num:'Number',bonus:'Bonus game',mild:'Mild',medium:'Medium',brutal:'Brutal'};
 const KIND_STYLE={mild:{bg:'#11a39a',fg:'#ffffff'},medium:{bg:'#e8590c',fg:'#ffffff'}};
 const OUTCOMES={
-  miss:{w:11,kind:'house',short:'MISS',name:'House Wins',bg:'#241d3d',fg:'#9a91cc',desc:'Nothing happens. You drank your bet for nothing.'},
-  n1:{w:18,kind:'num',n:1,short:'1',bg:'#2f7bff',fg:'#ffffff'},
+  miss:{w:9,kind:'house',short:'MISS',name:'House Wins',bg:'#241d3d',fg:'#9a91cc',desc:'Nothing happens. You drank your bet for nothing.'},
+  n1:{w:16,kind:'num',n:1,short:'1',bg:'#2f7bff',fg:'#ffffff'},
   n2:{w:9,kind:'num',n:2,short:'2',bg:'#ffc83a',fg:'#1a1240'},
   n5:{w:3,kind:'num',n:5,short:'5',bg:'#ff3d8b',fg:'#ffffff'},
   n10:{w:1,kind:'num',n:10,short:'10',bg:'#9a55ff',fg:'#ffffff'},
@@ -470,6 +495,7 @@ const OUTCOMES={
   hunt:{w:4,kind:'bonus',short:'SIP HUNT',name:'Sip Hunt',bg:'#3fe08f',fg:'#0b2a1a',desc:'Pick one of 36 hidden tiles. Most hide multipliers, some hide traps.'},
   plinko:{w:4,kind:'bonus',short:'PLINKO',name:'Plinko of Doom',bg:'#2ad4ff',fg:'#0b1f33',desc:'Drop a puck down the pegs into payouts, traps, a waterfall or a double-stakes re-drop.'},
   crazy:{w:2,kind:'bonus',short:'CRAZY',name:'Crazy Round',bg:'#ff2e4d',fg:'#ffe066',desc:'A second wheel with the biggest payouts and the nastiest punishments.'},
+  drag:{w:4,kind:'bonus',short:'DRAG RACE',name:'Drag Race',bg:'#c6ff00',fg:'#141414',desc:'Everyone gets a random car for a quarter-mile race. The winner hands out sips, last place drinks, and somebody always gets the Dacia Duster.'},
   truth:{w:4,kind:'mild',short:'TRUTH',name:'Truth or Shot',desc:'A random player asks you anything. Answer honestly or drink 5.'},
   rule:{w:3,kind:'mild',short:'NEW RULE',name:'Make a Rule',desc:'Add a house rule that lasts the rest of the game.'},
   accent:{w:4,kind:'mild',short:'ACCENT',name:'Accent Curse',desc:'Talk in an accent until your next turn. Every slip costs a sip.'},
@@ -489,7 +515,7 @@ const OUTCOMES={
 };
 const style=k=>{const o=OUTCOMES[k];const s=KIND_STYLE[o.kind]||{};return{bg:o.bg||s.bg,fg:o.fg||s.fg,label:o.short,big:o.kind==='num'}};
 const oname=k=>OUTCOMES[k].name||`Number ${OUTCOMES[k].n}`;
-const TOP_KEYS=['n1','n2','n5','n10','coin','hunt','plinko','crazy'];
+const TOP_KEYS=['n1','n2','n5','n10','coin','hunt','plinko','crazy','drag'];
 
 function buildSlots(){
   let seed=20261028;
@@ -627,7 +653,7 @@ function giveUI(box,giver,raw,done,opts={}){
 /* modal */
 const modal=$('#modal'),sheet=$('#sheet');
 function openSheet(head,html,foot=''){sheet.innerHTML=head+`<div class="m-body">${html}</div>`+foot;modal.hidden=false;modal.scrollTop=0;return $('.m-body',sheet)}
-function closeModal(){modal.hidden=true;sheet.innerHTML=''}
+function closeModal(){modal.hidden=true;sheet.innerHTML='';sheet.classList.remove('wide')}
 function endRound(body,msgs=[],extra=''){
   const m=msgs.filter(Boolean);const d=document.createElement('div');d.className='result';
   d.innerHTML=`${extra}${m.length?`<ul class="drinks">${m.map(x=>`<li>${esc(x)}</li>`).join('')}</ul>`:''}<button class="btn wide pink" data-next>Next player →</button>`;
@@ -819,6 +845,295 @@ R.jackpot=(b,ctx)=>{const j=S.jackpot;S.jackpot=5;fanfare();confetti();
   b.innerHTML=`<p class="lead">${esc(ctx.p.name)} wins the jackpot of <b>${sips(j)}</b>. The cap does not apply. The jackpot resets to 5.</p><div class="gbox"></div>`;
   giveUI($('.gbox',b),ctx.p,j,msgs=>endRound(b,msgs),{noCap:true})};
 
+/* ---------- drag race ---------- */
+// Side profiles on a 100×40 grid: x runs from rear bumper to nose, y=40 is the road. `power` sets the base win odds.
+const CARS=[
+  {id:'mx5',name:'Mazda MX-5',power:8,len:.84,color:'#d5202b',rim:'#cfd3da',wr:7.2,wx:[22,79],hl:[95.4,28.6],tl:[2.8,25],
+    body:[[5,36.5],[2.5,31],[3.5,24.5],[8,21.5],[20,20.5],[36,20.5],[64,21],[80,22.5],[92,25.5],[97,29.5],[97,34.5],[94,36.5]],
+    roof:[{p:[[39,21],[39.6,15.2],[44.4,15.2],[45,21]],f:'#17171e',s:1},{p:[[48.6,15],[49.6,12.6],[52,11.6],[54.4,12.6],[55.4,15],[54.4,17.4],[52,18.4],[49.6,17.4]],f:'#f4f1ff',s:1},{p:[[49.5,17],[55,17],[56.5,21.2],[48,21.2]],f:'#17171e',s:1}],
+    glass:[[[58.5,21],[62,12.4],[64,12.4],[68,21.3]]],
+    parts:[{p:[[52.6,13.2],[55.2,13.6],[55.2,15.4],[52.6,15.4]],f:'#17171e'},{p:[[84.5,19.4],[91,19.8],[91.6,23.6],[84.5,22.8]],f:'body'},{p:[[90.3,20.2],[91.4,20.3],[91.8,23.2],[90.7,23]],f:'#fff7c2'}]},
+  {id:'rx7',name:'Mazda RX-7',power:14,len:.96,color:'#f5c518',rim:'#2b2b33',wr:7.3,wx:[23,79.5],
+    body:[[4,36.5],[2,30.5],[3,24],[7,19.5],[18,17.6],[30,16.6],[40,12.3],[50,11.2],[58,12.2],[68,18.6],[82,21.4],[93,25],[98,29.5],[97.5,34.5],[94,36.5]],
+    glass:[[[31.5,17],[41,13.2],[50,12.3],[57,13.2],[65.5,18.6]]],
+    parts:[{p:[[2.5,18.8],[4.5,15.8],[16,16.2],[16,17.5],[6.5,17.6],[5.5,19.6]],f:'shade'}]},
+  {id:'m3',name:'BMW M3 GTR',power:16,len:1,color:'#dfe4ec',rim:'#1d1f27',wr:7.4,wx:[22,81],
+    body:[[3,36.5],[2,29],[3,22],[6,20],[6,20],[20,19.4],[27,19],[36,12.8],[36,12.8],[44,12],[56,12],[62,13.6],[72,20.4],[88,22],[96,25],[98.5,30],[98,35],[95,37]],
+    glass:[[[30,19.2],[37.5,13.7],[55.5,13.4],[61,14.5],[69.5,20.2]]],
+    parts:[{p:[[58,23.5],[74,24],[68,33],[50,33]],f:'#1b3f9c'},{p:[[40,23],[54,23.4],[46,33],[31,33]],f:'#3d74dd'},{p:[[27,22.8],[36,23],[27,33],[18,33]],f:'#1b3f9c'},
+      {p:[[9,11],[10.6,11],[11.6,19.6],[9.6,19.6]],f:'#111218'},{p:[[14.5,11],[16,11],[17,19.5],[15,19.5]],f:'#111218'},
+      {p:[[1,8.6],[19,9.6],[19,11.4],[1,10.8]],f:'#111218'},{p:[[1,7.2],[4,7.2],[4.5,13.5],[1,13.5]],f:'#111218'},
+      {p:[[90,36.2],[100.5,36.2],[100.5,37.6],[90,37.6]],f:'#111218'}]},
+  {id:'r34',name:'Nissan Skyline GT-R',power:17,len:1,color:'#1f58cf',rim:'#b08d57',wr:7.4,wx:[23,81],
+    body:[[3,36.5],[2,28],[2.5,21],[5,19.4],[5,19.4],[21,19],[29,18.5],[37,12.6],[37,12.6],[46,11.8],[57,11.8],[63,13],[72.5,19.8],[90,21.5],[97,24.5],[98.5,30],[98,35],[95,37]],
+    glass:[[[32,18.7],[38.5,13.5],[56.5,13.2],[62,14.2],[70,19.6]]],
+    parts:[{p:[[7,11.6],[9,11.6],[10,19.3],[8,19.3]],f:'shade'},{p:[[16,11.8],[18,11.8],[19,19.2],[17,19.2]],f:'shade'},{p:[[2,9.6],[21,10.2],[21,12],[2,11.6]],f:'body'}]},
+  {id:'supra',name:'Toyota Supra',power:17,len:1,color:'#f47a1f',rim:'#e9ecf1',wr:7.4,wx:[23.5,80],
+    body:[[4,36.5],[2,30],[3,23],[8,19],[20,17.6],[30,16.8],[39,12.8],[48,11.8],[57,12.5],[67,18.6],[82,21],[93,24.5],[98,29],[97.5,34.5],[94,36.5]],
+    glass:[[[32.5,17.2],[40.5,13.6],[48,12.8],[56,13.5],[64.5,18.7]]],
+    parts:[{p:[[38,23],[66,24],[59,31.5],[31,31]],f:'#c8ec55',a:.9},{p:[[46,25],[61,25.6],[57,30],[42,29.6]],f:'#3e8f3a'},
+      {p:[[5,18.8],[3.5,8.8],[6,7.4],[21,8.6],[21.5,10.2],[8.5,10.2],[9.8,18.6]],f:'body'}]},
+  {id:'civic',name:'Honda Civic',power:9,len:.86,color:'#7a2ff0',rim:'#f1f1f4',wr:7.2,wx:[18,80.5],glow:'#39ff14',tl:[2.6,21],
+    body:[[3,36.5],[2,28],[3,20],[6,15],[11,9.6],[11,9.6],[20,8],[48,8],[56,9.6],[68,19],[84,21.5],[94,24.5],[98,29],[98,35],[95,37]],
+    glass:[[[9.5,18.6],[13.5,10.6],[20,9.5],[47,9.5],[55,10.8],[65.5,19.2]]],
+    parts:[{p:[[28,9.5],[30.5,9.5],[30.5,19],[28,19]],f:'body'},{p:[[45,9.5],[47,9.5],[49.5,19.2],[47.5,19.2]],f:'body'},
+      {p:[[5.5,9.8],[12,7],[20,7.2],[20,8.3],[12.5,8.6],[7,10.8]],f:'#131318'},{p:[[-1.5,33],[4,33],[4,35.8],[-1.5,35.8]],f:'#c9ccd4'}]},
+  {id:'r8',name:'Audi R8',power:18,len:.98,color:'#8f959d',rim:'#22242c',wr:7.5,wx:[19,78],
+    body:[[3,36.5],[2,29],[3,22],[8,19],[20,17.4],[34,15],[44,12.9],[52,12.6],[60,13.8],[72,19.6],[86,22.5],[95,26],[98,30],[97.5,34.5],[94,36.8]],
+    glass:[[[39.5,19.4],[40,14.8],[45,13.7],[52,13.5],[59,14.6],[69.5,19.6]]],
+    parts:[{p:[[31.5,16.4],[37.5,15.2],[39.5,33.5],[33,34.5]],f:'#0e0e13'},{p:[[90.5,25],[97,27.2],[97,28.1],[90.5,25.9]],f:'#ffffff'}]},
+  {id:'duster',name:'Dacia Duster',power:1.2,len:.95,color:'#b3a07a',rim:'#8b8f96',wr:8,wx:[19.5,81],slow:true,flare:true,hl:[96.4,21.6],tl:[2.4,15.5],
+    body:[[3,34],[2,24],[3,15],[5,12],[9,4.6],[9,4.6],[14,2.8],[52,2.8],[60,4.6],[72,14.6],[88,16.6],[96,19.6],[98,25],[98,33],[96,35]],
+    glass:[[[9,13],[12.2,5.6],[15,4.3],[51,4.3],[58,5.8],[68.5,14.6]]],
+    parts:[{p:[[27,4.3],[30,4.3],[30,13.8],[27,13.8]],f:'body'},{p:[[45,4.3],[47.5,4.3],[50,14.2],[47.5,14.2]],f:'body'},
+      {p:[[2.5,30],[98,30],[98,34],[96,35.2],[3,34.2]],f:'#1a1a20'},{p:[[13,1.4],[54,1.4],[54,2.5],[13,2.5]],f:'#c8ccd3'},
+      {p:[[20,-3.4],[24,-5.4],[44,-5.4],[49,-3.4],[49,1.3],[20,1.3]],f:'#111116',s:1}]},
+];
+const shadeHex=(h,f)=>{const n=parseInt(h.slice(1),16),m=v=>Math.round(f<0?v*(1+f):v+(255-v)*f);return`rgb(${m(n>>16)},${m(n>>8&255)},${m(n&255)})`};
+function tracePath(x,p,smooth){
+  x.beginPath();
+  if(!smooth){p.forEach(([a,b],i)=>i?x.lineTo(a,b):x.moveTo(a,b));x.closePath();return}
+  const n=p.length;x.moveTo((p[n-1][0]+p[0][0])/2,(p[n-1][1]+p[0][1])/2);
+  for(let i=0;i<n;i++){const q=p[(i+1)%n];x.quadraticCurveTo(p[i][0],p[i][1],(p[i][0]+q[0])/2,(p[i][1]+q[1])/2)}
+  x.closePath();
+}
+// Draws a car with its nose at `nose` and its tyres on `ground`; k is pixels per grid unit.
+function drawCar(x,c,nose,ground,k,o={}){
+  const s=k*c.len,col=f=>f==='body'?c.color:f==='shade'?shadeHex(c.color,-.32):f;
+  x.save();x.translate(nose-100*s,ground);x.scale(s,s);x.translate(0,-40);
+  x.fillStyle=c.glow||'#000';x.globalAlpha=c.glow?.3:.45;x.beginPath();x.ellipse(50,40.5,c.glow?53:50,c.glow?2.6:2,0,0,7);x.fill();x.globalAlpha=1;
+  if(o.tilt){x.translate(c.wx[0],40);x.rotate(o.tilt);x.translate(-c.wx[0],-40)}
+  if(o.flame>0){
+    const fl=(12+o.flame*18)*(.7+Math.random()*.6),g=x.createLinearGradient(3,0,3-fl,0);
+    g.addColorStop(0,'#ffffff');g.addColorStop(.3,'#7fdcff');g.addColorStop(1,'rgba(47,123,255,0)');
+    x.fillStyle=g;x.beginPath();x.moveTo(3,31.5);x.quadraticCurveTo(3-fl*.5,29.5,3-fl,33.5);x.quadraticCurveTo(3-fl*.5,37,3,35.5);x.fill();
+  }
+  const g=x.createLinearGradient(0,6,0,38);g.addColorStop(0,shadeHex(c.color,.22));g.addColorStop(.5,c.color);g.addColorStop(1,shadeHex(c.color,-.38));
+  tracePath(x,c.body,1);x.fillStyle=g;x.fill();
+  (c.roof||[]).forEach(q=>{tracePath(x,q.p,q.s);x.fillStyle=col(q.f);x.fill()});
+  c.glass.forEach(q=>{
+    tracePath(x,q,0);x.fillStyle='#121a2a';x.fill();
+    x.save();x.clip();x.fillStyle='rgba(170,210,255,.25)';x.beginPath();x.moveTo(q[0][0]+12,0);x.lineTo(q[0][0]+21,0);x.lineTo(q[0][0]+10,40);x.lineTo(q[0][0]+1,40);x.fill();x.restore();
+  });
+  (c.parts||[]).forEach(q=>{tracePath(x,q.p,q.s);x.globalAlpha=q.a||1;x.fillStyle=col(q.f);x.fill();x.globalAlpha=1});
+  const hl=c.hl||[95.6,27.2],tl=c.tl||[2.4,23.6],wy=40-c.wr;
+  x.fillStyle='#fff6c8';x.beginPath();x.ellipse(hl[0],hl[1],2.1,1.3,-.35,0,7);x.fill();
+  x.fillStyle='#ff2d2d';x.fillRect(tl[0],tl[1],2.3,3.2);
+  c.wx.forEach(wx=>{
+    x.fillStyle='#08080c';x.beginPath();x.arc(wx,wy,c.wr+(c.flare?2.8:1.5),Math.PI,0);x.fill();
+    x.fillStyle='#17171c';x.beginPath();x.arc(wx,wy,c.wr,0,7);x.fill();
+    x.fillStyle=c.rim;x.beginPath();x.arc(wx,wy,c.wr*.64,0,7);x.fill();
+    x.strokeStyle='#0c0c10';x.lineWidth=1.1;x.beginPath();
+    for(let i=0;i<5;i++){const a=(o.spin||0)+i*Math.PI*.4;x.moveTo(wx,wy);x.lineTo(wx+Math.cos(a)*c.wr*.64,wy+Math.sin(a)*c.wr*.64)}
+    x.stroke();x.fillStyle='#0c0c10';x.beginPath();x.arc(wx,wy,c.wr*.17,0,7);x.fill();
+  });
+  x.restore();
+}
+// One continuous engine note: pitch climbs through the gears, drops on every shift.
+function engineSound(){
+  const off={set(){},stop(){}};if(S.muted)return off;const a=ac();if(!a)return off;
+  try{
+    const o1=a.createOscillator(),o2=a.createOscillator(),f=a.createBiquadFilter(),g=a.createGain();
+    o1.type='sawtooth';o2.type='square';f.type='lowpass';f.frequency.value=700;g.gain.value=0;
+    o1.connect(f);o2.connect(f);f.connect(g).connect(a.destination);o1.start();o2.start();
+    return{
+      set(rpm,vol){const t=a.currentTime,hz=48+rpm*140;o1.frequency.setTargetAtTime(hz,t,.03);o2.frequency.setTargetAtTime(hz*.5+1.5,t,.03);f.frequency.setTargetAtTime(350+rpm*1700,t,.05);g.gain.setTargetAtTime(vol,t,.05)},
+      stop(){try{g.gain.setTargetAtTime(0,a.currentTime,.12);o1.stop(a.currentTime+.8);o2.stop(a.currentTime+.8)}catch(e){}}
+    };
+  }catch(e){return off}
+}
+// Deals the cars and decides the result up front; the animation then plays it out.
+function planDrag(){
+  const pool=shuffle(CARS.filter(c=>!c.slow)),cars=[CARS.find(c=>c.slow)];
+  for(let i=0;cars.length<S.players.length;i++)cars.push(pool[i%pool.length]);
+  shuffle(cars);
+  const rs=S.players.map((pl,i)=>({pl,car:cars[i],w:cars[i].power*(.55+Math.random()*1.1)}));
+  const tot=rs.reduce((a,r)=>a+r.w,0);rs.forEach(r=>r.pct=r.w/tot);
+  const draw=list=>{let x=Math.random()*list.reduce((a,r)=>a+r.w,0),i=0;while(i<list.length-1&&(x-=list[i].w)>0)i++;return list.splice(i,1)[0]};
+  const left=[...rs],order=[draw(left)];
+  // The Duster comes last unless the miracle happened and it won.
+  const slow=left.findIndex(r=>r.car.slow),tail=slow>=0?left.splice(slow,1):[];
+  while(left.length)order.push(draw(left));
+  order.push(...tail);
+  let t=10.9+Math.random()*1.3;const photo=Math.random()<.6,rabbit=order.length>2?1+rnd(order.length-2):-1;
+  order.forEach((r,i)=>{
+    if(i===1)t+=photo?.012+Math.random()*.07:.12+Math.random()*.35;else if(i>1)t+=.04+Math.random()*.27;
+    if(i>0&&r.car.slow)t+=2.2+Math.random()*1.5;
+    r.T=t;r.place=i+1;
+    // Exponent shapes the run: low = quick launch that fades, high = slow start and a late charge.
+    r.a=i===0?(Math.random()<.65?1.82+Math.random()*.08:1.62+Math.random()*.12):r.car.slow?1.5:i===rabbit?1.5+Math.random()*.08:1.62+Math.random()*.18;
+    r.A=.008+Math.random()*.012;r.f=1+Math.random()*1.2;r.ph=Math.random()*6.28;
+  });
+  return rs;
+}
+function dragRace(cv,rs,done){
+  const n=rs.length,dpr=Math.min(window.devicePixelRatio||1,2),W=cv.clientWidth||320;
+  const top=42,mini=26,laneH=Math.max(30,Math.min(58,Math.floor((Math.min(innerHeight*.6,500)-top-mini)/n))),H=top+n*laneH+mini;
+  cv.style.height=H+'px';cv.width=Math.round(W*dpr);cv.height=Math.round(H*dpr);
+  const x=cv.getContext('2d'),k=laneH*2.05/100,L=Math.max(7.2*W,2300),startX=Math.min(W*.42,100*k+34),speedUp=reduced?2.5:1;
+  const order=[...rs].sort((a,b)=>a.T-b.T),win=order[0],gap=order[1].T-win.T;
+  const lastT=order[n-1].T,packT=Math.max(...rs.filter(r=>!r.car.slow||r===win).map(r=>r.T)),endT=lastT-packT<1.3?lastT:packT;
+  const pos=(r,t)=>{
+    if(t<=0)return 0;const u=t/r.T;
+    if(u<=1){const s=Math.sin(Math.PI*u);return Math.pow(u,r.a)+r.A*s*s*Math.sin(2*Math.PI*r.f*u+r.ph)}
+    const d=Math.min(t-r.T,3);return 1+r.a/r.T*(d-d*d/6);
+  };
+  const GEARS=[0,.1,.26,.48,.74,1.01],eng=engineSound(),smoke=[],label=r=>r.pl.name.toUpperCase().slice(0,12);
+  let last=performance.now(),st=0,rt=0,cam=-startX,scale=1,leader=null,banner='',bannerT=0,flash=0,lit=0,beat=1,over=false;
+  const greenAt=2.2+Math.random()*.6,ambers=[.7,1.2,1.7];
+  const finish=()=>{if(over)return;over=true;eng.stop();setTimeout(done,reduced?100:900)};
+  const text=(s,tx,ty,fill,stroke=3)=>{x.lineWidth=stroke;x.strokeStyle='rgba(6,4,18,.85)';x.lineJoin='round';x.strokeText(s,tx,ty);x.fillStyle=fill;x.fillText(s,tx,ty)};
+
+  function frame(now){
+    if(!cv.isConnected){eng.stop();return}
+    const dt=Math.min(.05,(now-last)/1000);last=now;
+    let go=st>=greenAt;
+    if(!go){
+      st+=dt*speedUp;
+      while(lit<3&&st>=ambers[lit]){lit++;beep(440,.16,'square',.06)}
+      if(st>=greenAt){go=true;beep(880,.5,'square',.07)}
+    }else{
+      const lead=Math.max(...rs.map(r=>pos(r,rt)));
+      const want=!reduced&&lead>=.86&&rt<win.T+.1?.28:1;
+      scale+=(want-scale)*Math.min(1,dt*7);
+      const before=rt;rt+=dt*scale*speedUp;
+      if(before<win.T&&rt>=win.T){flash=1;win.car.slow?doom():fanfare()}
+      if(scale<.6&&rt<win.T){beat+=dt;if(beat>.6){beat=0;beep(58,.12,'sine',.16);beep(58,.12,'sine',.11,.17)}}
+      if(rt>=endT+.9)finish();
+    }
+    const ps=rs.map(r=>pos(r,rt)),vs=rs.map((r,i)=>(ps[i]-pos(r,rt-.05))/.05),lead=Math.max(...ps),li=ps.indexOf(lead),avgV=vs.reduce((a,b)=>a+b,0)/n;
+    if(go&&rt<win.T){
+      if(leader===null||rt<1)leader=li;
+      else if(li!==leader&&ps[li]-ps[leader]>.002){leader=li;banner=label(rs[li])+' takes the lead';bannerT=1.7;beep(1250,.07,'triangle',.06)}
+    }
+    bannerT-=dt;flash=Math.max(0,flash-dt*2.2);
+    const u=Math.min(1,lead),gi=Math.max(0,GEARS.findIndex(b=>b>u)-1),rev=go?.42+.58*(u-GEARS[gi])/(GEARS[gi+1]-GEARS[gi]):.25+.4*Math.abs(Math.sin(st*7));
+    if(!over)eng.set(rev*(.5+.5*scale),go?(rt>win.T?.02:.045):.03);
+
+    const cTarget=Math.max(-startX,Math.min(lead,1)*L-W*.7);cam+=(cTarget-cam)*Math.min(1,dt*8);
+    const speed=Math.min(1,vs[li]/.17),trackH=n*laneH,shake=go&&rt<.5&&!reduced?(Math.random()-.5)*5*(1-rt/.5):0;
+    x.setTransform(dpr,0,0,dpr,0,0);x.clearRect(0,0,W,H);
+    x.save();x.translate(shake,shake*.6);
+
+    // night sky, crowd lights, lamp posts, distance boards
+    x.fillStyle='#0b0920';x.fillRect(-6,-6,W+12,top+6);
+    const P=W+80,CL=['#ffc83a','#ff3d8b','#2ad4ff','#ffffff','#3fe08f'];
+    for(let i=0;i<46;i++){const sx=(((i*173.3)%P-cam*.3)%P+P)%P-40;x.fillStyle=CL[i%5];x.globalAlpha=.35+(i%4)*.12;x.fillRect(sx,5+(i*37)%18,2,2)}
+    x.globalAlpha=1;
+    for(let j=Math.floor(cam/260);j*260-cam<W+20;j++){const sx=j*260-cam;x.fillStyle='#2a2550';x.fillRect(sx-1,12,2,top-16);x.fillStyle='#fff3c4';x.shadowColor='#ffd97a';x.shadowBlur=10;x.beginPath();x.arc(sx,12,2.6,0,7);x.fill();x.shadowBlur=0}
+    x.font='700 10px "Barlow Condensed", sans-serif';x.textAlign='center';x.textBaseline='middle';
+    [100,200,300].forEach(m=>{const sx=m/402*L-cam;if(sx<-30||sx>W+30)return;x.fillStyle='#111';x.fillRect(sx-17,top-21,34,13);x.strokeStyle='#ffc83a';x.lineWidth=1;x.strokeRect(sx-17,top-21,34,13);x.fillStyle='#ffc83a';x.fillText(m+' m',sx,top-14)});
+
+    // track
+    x.fillStyle='#211f2d';x.fillRect(-6,top,W+12,trackH);
+    for(let i=0;i<n;i+=2){x.fillStyle='rgba(255,255,255,.025)';x.fillRect(-6,top+i*laneH,W+12,laneH)}
+    const ko=((cam%24)+24)%24;
+    for(let sx=-ko-24;sx<W+24;sx+=24){x.fillStyle='#d92b3a';x.fillRect(sx,top-4,12,4);x.fillRect(sx+12,top+trackH,12,4);x.fillStyle='#f1eef9';x.fillRect(sx+12,top-4,12,4);x.fillRect(sx,top+trackH,12,4)}
+    x.strokeStyle='rgba(255,255,255,.22)';x.lineWidth=1.5;x.setLineDash([22,18]);x.lineDashOffset=cam;
+    for(let i=1;i<n;i++){x.beginPath();x.moveTo(-6,top+i*laneH);x.lineTo(W+6,top+i*laneH);x.stroke()}
+    x.setLineDash([]);
+    if(-cam>-10&&-cam<W+10){x.fillStyle='rgba(255,255,255,.85)';x.fillRect(-cam-2,top,4,trackH)}
+    const fx=L-cam;
+    if(fx>-30&&fx<W+30){const q=6;for(let c=0;c<3;c++)for(let r=0;r*q<trackH;r++){x.fillStyle=(c+r)%2?'#f4f1ff':'#0c0b12';x.fillRect(fx+c*q,top+r*q,q,Math.min(q,trackH-r*q))}}
+    if(go&&speed>.05){x.fillStyle='#fff';const SP=W+240;for(let i=0;i<18;i++){const sx=(((i*211.7)%SP-cam*1.6)%SP+SP)%SP-120;x.globalAlpha=speed*.2;x.fillRect(sx,top+(i%n)*laneH+4+(i*53)%(laneH-8),18+speed*90,1.2)}x.globalAlpha=1}
+
+    // smoke
+    for(let i=smoke.length-1;i>=0;i--){const p=smoke[i];p.life-=dt*scale;if(p.life<=0){smoke.splice(i,1);continue}p.y-=p.vy*dt*scale;p.x-=p.vx*dt*scale;p.r+=dt*scale*9;x.globalAlpha=p.a*p.life/p.max;x.fillStyle=p.col;x.beginPath();x.arc(p.x-cam,p.y,p.r,0,7);x.fill()}
+    x.globalAlpha=1;
+
+    // cars
+    x.font=`700 ${Math.max(10,Math.min(13,laneH*.3))}px "Barlow Condensed", sans-serif`;
+    rs.forEach((r,i)=>{
+      const c=r.car,X=ps[i]*L,sx=X-cam,ground=top+(i+1)*laneH-5+(!go?Math.sin(st*40+i)*.5:0),s=k*c.len,rear=sx-100*s;
+      if(go&&smoke.length<170){
+        if(rt<1.1&&Math.random()<.5)smoke.push({x:X-100*s+c.wx[0]*s,y:ground-3,vx:40,vy:10,r:3+Math.random()*3,life:.7,max:.7,a:.45,col:'#dcdce6'});
+        if(c.slow&&Math.random()<.3)smoke.push({x:X-100*s,y:ground-6,vx:10,vy:16,r:2.5+Math.random()*3,life:1.2,max:1.2,a:.6,col:'#3a3530'});
+      }
+      if(sx>-10&&rear<W+10){
+        const hy=ground-(40-(c.hl||[0,27.2])[1])*s,bl=laneH*2.6,bg=x.createLinearGradient(sx,0,sx+bl,0);
+        bg.addColorStop(0,'rgba(255,244,190,.3)');bg.addColorStop(1,'rgba(255,244,190,0)');
+        x.fillStyle=bg;x.beginPath();x.moveTo(sx-2,hy);x.lineTo(sx+bl,hy-laneH*.3);x.lineTo(sx+bl,ground);x.closePath();x.fill();
+        const boost=go&&rt<r.T&&rt>1.5&&(vs[i]>avgV*1.035||(r===win&&r.a>=1.8&&ps[i]>.6));
+        drawCar(x,c,sx,ground,k,{spin:X/(c.wr*s),tilt:go&&rt<.9?-.045*(1-rt/.9):0,flame:boost?1:0});
+      }
+      x.textBaseline='middle';
+      if(sx<=4){x.textAlign='left';const m=Math.round((lead-ps[i])*402),s2='◀ '+label(r)+(m>0?'  '+m+' m':'');x.fillStyle='rgba(6,4,18,.7)';x.fillRect(2,ground-laneH*.5-8,x.measureText(s2).width+10,16);x.fillStyle=c.color;x.fillRect(2,ground-laneH*.5-8,3,16);text(s2,9,ground-laneH*.5,'#fff',0)}
+      else{const tw=x.measureText(label(r)).width;if(rear-8-tw>2){x.textAlign='right';text(label(r),rear-7,ground-laneH*.36,'#fff')}else{x.textAlign='left';text(label(r),4,ground-laneH+13,'#fff')}}
+    });
+    x.restore();
+
+    // HUD: lights, clock, speed, banners
+    x.textBaseline='middle';
+    if(!go||rt<.8){
+      for(let i=0;i<4;i++){const on=i<3?i<lit&&!go:go,cx=W/2+(i-1.5)*24;x.fillStyle=on?(i<3?'#ffb300':'#3fe08f'):'#2a2540';x.shadowColor=x.fillStyle;x.shadowBlur=on?14:0;x.beginPath();x.arc(cx,top/2-1,7.5,0,7);x.fill()}
+      x.shadowBlur=0;
+      if(go){x.globalAlpha=Math.max(0,1-rt/.8);x.font=`${Math.min(64,W/5)}px Bungee, Impact, sans-serif`;x.textAlign='center';text('GO!',W/2,top+trackH/2,'#3fe08f',6);x.globalAlpha=1}
+    }else{
+      x.font='14px Bungee, Impact, sans-serif';x.textAlign='left';text(Math.min(rt,order[n-1].T).toFixed(2)+' s',10,top/2-2,'#ffc83a');
+      if(rt<win.T){x.textAlign='right';text(Math.round(vs[li]*402*3.6)+' km/h',W-10,top/2-2,'#2ad4ff')}
+      if(bannerT>0&&rt<win.T&&scale>.9){x.globalAlpha=Math.min(1,bannerT*2);x.font='700 15px "Barlow Condensed", sans-serif';x.textAlign='center';text(banner.toUpperCase(),W/2,top/2-2,'#fff');x.globalAlpha=1}
+    }
+    if(scale<.92&&rt<win.T+.1){
+      const v=x.createRadialGradient(W/2,top+trackH/2,H*.3,W/2,top+trackH/2,W*.75);v.addColorStop(0,'rgba(0,0,0,0)');v.addColorStop(1,`rgba(0,0,0,${(1-scale)*.75})`);x.fillStyle=v;x.fillRect(0,0,W,H);
+      if(Math.floor(now/260)%2){x.font='700 15px "Barlow Condensed", sans-serif';x.textAlign='center';text(gap<.1?'PHOTO FINISH':'FINAL METRES',W/2,top/2-2,'#ff4b5c')}
+    }
+    if(rt>=win.T){
+      x.textAlign='center';x.font=`${Math.max(18,Math.min(38,W/11))}px Bungee, Impact, sans-serif`;
+      text(win.car.slow?'THE DUSTER WINS?!':label(win)+' WINS',W/2,top+trackH/2-8,'#ffc83a',6);
+      x.font='700 14px "Barlow Condensed", sans-serif';text(win.car.name.toUpperCase()+' · '+win.T.toFixed(3)+' S',W/2,top+trackH/2+18,'#fff');
+    }
+    if(flash>0){x.fillStyle=`rgba(255,255,255,${flash*.8})`;x.fillRect(0,0,W,H)}
+
+    // minimap
+    const my=H-12;x.fillStyle='#0b0920';x.fillRect(0,top+trackH+4,W,mini-4);
+    x.fillStyle='rgba(255,255,255,.18)';x.fillRect(12,my-1.5,W-24,3);x.fillStyle='#f4f1ff';x.fillRect(W-13,my-7,2,14);
+    [...rs.keys()].sort((a,b)=>ps[a]-ps[b]).forEach(i=>{x.fillStyle=rs[i].car.color;x.strokeStyle='#06040f';x.lineWidth=1.5;x.beginPath();x.arc(12+Math.min(1,ps[i])*(W-24),my,4.5,0,7);x.fill();x.stroke()});
+
+    if(!over||flash>0)requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+}
+R.drag=(b,ctx)=>{
+  const rs=planDrag(),n=rs.length,stake=ctx.bet*ctx.mult,order=[...rs].sort((a,c)=>a.T-c.T),win=order[0],lastR=order[n-1];
+  sheet.classList.add('wide');
+  b.innerHTML=`<p class="lead">Quarter mile, one random car each. The winner hands out <b>${sips(stake*3)}</b>, last place drinks <b>${sips(stake*2)}</b>. One of you gets the Dacia Duster.</p>
+  <div class="grid-cars">${rs.map(r=>`<div class="gc"><b>${esc(r.pl.name)}</b><canvas width="300" height="116"></canvas><span class="gc-car">…</span><span class="gc-odds">&nbsp;</span></div>`).join('')}</div>
+  <button class="btn wide" data-race disabled>Drawing cars…</button><div class="race-box"></div><div class="gbox"></div>`;
+  const cards=[...b.querySelectorAll('.gc')],locked=new Set(),btn=$('[data-race]',b);
+  const show=(el,car)=>{const x=$('canvas',el).getContext('2d');x.setTransform(2,0,0,2,0,0);x.clearRect(0,0,150,58);drawCar(x,car,143,53,1.15);$('.gc-car',el).textContent=car.name};
+  const cyc=setInterval(()=>{if(!b.isConnected){clearInterval(cyc);return}cards.forEach((el,i)=>{if(!locked.has(i))show(el,pick(CARS))});tick()},90);
+  // Safe cars lock in one by one; the Duster is revealed last.
+  const seq=shuffle(rs.map((r,i)=>i).filter(i=>!rs[i].car.slow)).concat(rs.findIndex(r=>r.car.slow)),step=reduced?150:700;
+  seq.forEach((i,j)=>setTimeout(()=>{
+    if(!b.isConnected)return;
+    const r=rs[i],el=cards[i];locked.add(i);show(el,r.car);el.classList.add('locked');el.scrollIntoView({block:'nearest',behavior:reduced?'auto':'smooth'});
+    $('.gc-odds',el).textContent=`Win chance ${Math.max(1,Math.round(r.pct*100))}%`;
+    if(r.car.slow){el.classList.add('duster');doom()}else beep(620+j*50,.09,'triangle',.07);
+    if(j===n-1){clearInterval(cyc);btn.disabled=false;btn.textContent='Start the race';setTimeout(()=>{if(btn.isConnected)btn.scrollIntoView({block:'nearest',behavior:reduced?'auto':'smooth'})},reduced?0:900)}
+  },step*(j+1)+(j===n-1&&!reduced?900:0)));
+
+  const results=()=>{
+    const ol=document.createElement('ol');ol.className='podium';
+    ol.innerHTML=order.map((r,i)=>`<li class="${i===0?'win':i===n-1&&!win.car.slow?'last':''}"><span class="pos">${i+1}</span><span><b>${esc(r.pl.name)}</b> <span class="muted">· ${r.car.name}</span></span><span class="t">${i===0?r.T.toFixed(3)+' s':'+'+(r.T-win.T).toFixed(3)+' s'}</span></li>`).join('');
+    $('.race-box',b).appendChild(ol);
+    logIt(`${win.pl.name} won the drag race in the ${win.car.name}`);
+    if(win.car.slow){
+      confetti();const os=others(win.pl);win.pl.given+=5*os.length;
+      endRound(b,os.map(q=>drink(q,5,'lost to a Dacia Duster')),`<p class="verdict">Beaten by a Duster</p><p class="lead" style="text-align:center">Everyone else finishes their drink.</p>`);return;
+    }
+    if(!reduced)confetti();
+    const msg=drink(lastR.pl,stake*2,`last in the ${lastR.car.name}`);save();renderAll();
+    giveUI($('.gbox',b),win.pl,stake*3,msgs=>endRound(b,[msg,...msgs]));
+  };
+  btn.onclick=()=>{
+    ac();$('.grid-cars',b).remove();btn.remove();const foot=$('.m-foot',sheet);if(foot)foot.remove();
+    const cv=document.createElement('canvas');cv.className='race';$('.race-box',b).appendChild(cv);
+    cv.scrollIntoView({block:'center'});
+    let ended=false;const end=()=>{if(!ended&&b.isConnected){ended=true;results()}};
+    try{dragRace(cv,rs,end)}catch(e){end()}
+  };
+};
+
 R.miss=(b,ctx)=>{doom();b.innerHTML=`<p class="lead">The house wins. ${esc(ctx.p.name)} drank ${sips(ctx.bet)} for nothing.</p>`;endRound(b,[])};
 
 function resolve(key,ctx){
@@ -975,8 +1290,9 @@ show();
     if(sc===document){
       for(const id of ['spinBtn','startBtn']){const el=document.getElementById(id);if(el&&!el.disabled&&visible(el))return el}
     }
+    // Never land on the "Skip this round" link automatically: OK must not skip a round by accident.
     const list=focusables(sc);
-    return list.find(el=>el.classList.contains('btn'))||list.find(el=>!el.classList.contains('linkbtn'))||list[0];
+    return list.find(el=>el.classList.contains('btn'))||list.find(el=>!el.classList.contains('linkbtn'));
   }
   // Re-renders replace buttons; put focus back on the same control, or on the obvious next one.
   function ensureFocus(){
@@ -989,6 +1305,7 @@ show();
     if(t&&(t.disabled||!visible(t)))t=null;
     t=t||fallback(sc);
     if(t)focusEl(t);
+    else if(a&&a!==document.body&&!sc.contains(a))a.blur();   // nothing to press yet: don't leave OK on a button behind the pop-up
   }
   let queued=false;
   new MutationObserver(()=>{if(queued)return;queued=true;requestAnimationFrame(()=>{queued=false;ensureFocus()})})
@@ -997,7 +1314,7 @@ show();
   // Spatial navigation: pick the nearest control in the pressed direction.
   function move(dx,dy){
     const sc=scope(),a=document.activeElement;
-    if(!a||a===document.body||!sc.contains(a)){ensureFocus();return}
+    if(!a||a===document.body||!sc.contains(a)){const t=fallback(sc)||focusables(sc)[0];if(t)focusEl(t);return}
     const r=a.getBoundingClientRect(),cx=r.left+r.width/2,cy=r.top+r.height/2;
     let best=null,bestScore=Infinity;
     for(const el of focusables(sc)){

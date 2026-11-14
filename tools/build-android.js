@@ -92,8 +92,9 @@ const tvScript = `
     if(sc===document){
       for(const id of ['spinBtn','startBtn']){const el=document.getElementById(id);if(el&&!el.disabled&&visible(el))return el}
     }
+    // Never land on the "Skip this round" link automatically: OK must not skip a round by accident.
     const list=focusables(sc);
-    return list.find(el=>el.classList.contains('btn'))||list.find(el=>!el.classList.contains('linkbtn'))||list[0];
+    return list.find(el=>el.classList.contains('btn'))||list.find(el=>!el.classList.contains('linkbtn'));
   }
   // Re-renders replace buttons; put focus back on the same control, or on the obvious next one.
   function ensureFocus(){
@@ -106,6 +107,7 @@ const tvScript = `
     if(t&&(t.disabled||!visible(t)))t=null;
     t=t||fallback(sc);
     if(t)focusEl(t);
+    else if(a&&a!==document.body&&!sc.contains(a))a.blur();   // nothing to press yet: don't leave OK on a button behind the pop-up
   }
   let queued=false;
   new MutationObserver(()=>{if(queued)return;queued=true;requestAnimationFrame(()=>{queued=false;ensureFocus()})})
@@ -114,7 +116,7 @@ const tvScript = `
   // Spatial navigation: pick the nearest control in the pressed direction.
   function move(dx,dy){
     const sc=scope(),a=document.activeElement;
-    if(!a||a===document.body||!sc.contains(a)){ensureFocus();return}
+    if(!a||a===document.body||!sc.contains(a)){const t=fallback(sc)||focusables(sc)[0];if(t)focusEl(t);return}
     const r=a.getBoundingClientRect(),cx=r.left+r.width/2,cy=r.top+r.height/2;
     let best=null,bestScore=Infinity;
     for(const el of focusables(sc)){
