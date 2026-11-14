@@ -1,6 +1,6 @@
 # Crazy Sips
 
-A drinking game wheel inspired by Crazy Time. The spinner bets sips, drinks them, spins the wheel and hands out bet × number, or plays one of the bonus games and special outcomes (King of Hearts, Ride the Bus, Plinko of Doom, an animated Drag Race, Accent Curse and more).
+A drinking game wheel inspired by Crazy Time. The spinner bets sips, drinks them, spins the wheel and hands out bet × number, or plays one of the bonus games and special outcomes (King of Hearts, Ride the Bus, Plinko of Doom, an animated Drag Race, a Squid Game-style Glass Bridge, Accent Curse and more).
 
 It is an installable web app (PWA) that works offline after the first visit.
 

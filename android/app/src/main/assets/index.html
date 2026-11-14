@@ -383,6 +383,15 @@ details.odds summary{font-family:var(--cond);font-weight:700;text-transform:uppe
 .podium .pos{font-family:var(--display);font-size:18px;color:var(--gold);min-width:1.4em}
 .podium .t{font-variant-numeric:tabular-nums;color:var(--muted);font-size:14px}
 
+/* glass bridge */
+.gb-queue{display:flex;flex-wrap:wrap;gap:6px}
+.gbq{display:inline-flex;align-items:center;gap:6px;padding:3px 10px 3px 3px;border-radius:999px;background:var(--bg2);border:1px solid var(--line);font-weight:700;font-size:14px}
+.gbq i{font-style:normal;font-family:var(--display);font-size:12px;color:#10131a;width:22px;height:22px;border-radius:50%;display:grid;place-items:center;flex:none}
+.gbq.now{border-color:var(--gold);box-shadow:0 0 0 1px var(--gold)}
+.gbq.fell{opacity:.55;text-decoration:line-through;border-color:var(--red)}
+.gbq.done{border-color:var(--green)}
+.gb{cursor:pointer}
+
 .bidbox{display:flex;flex-direction:column;gap:14px;align-items:center;text-align:center;padding:12px;background:var(--bg2);border-radius:14px}
 .bidlist{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
 .bidlist li{display:flex;justify-content:space-between;padding:8px 12px;background:var(--bg2);border-radius:8px}
@@ -486,8 +495,8 @@ const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
 const KIND={house:'Miss',num:'Number',bonus:'Bonus game',mild:'Mild',medium:'Medium',brutal:'Brutal'};
 const KIND_STYLE={mild:{bg:'#11a39a',fg:'#ffffff'},medium:{bg:'#e8590c',fg:'#ffffff'}};
 const OUTCOMES={
-  miss:{w:9,kind:'house',short:'MISS',name:'House Wins',bg:'#241d3d',fg:'#9a91cc',desc:'Nothing happens. You drank your bet for nothing.'},
-  n1:{w:16,kind:'num',n:1,short:'1',bg:'#2f7bff',fg:'#ffffff'},
+  miss:{w:7,kind:'house',short:'MISS',name:'House Wins',bg:'#241d3d',fg:'#9a91cc',desc:'Nothing happens. You drank your bet for nothing.'},
+  n1:{w:14,kind:'num',n:1,short:'1',bg:'#2f7bff',fg:'#ffffff'},
   n2:{w:9,kind:'num',n:2,short:'2',bg:'#ffc83a',fg:'#1a1240'},
   n5:{w:3,kind:'num',n:5,short:'5',bg:'#ff3d8b',fg:'#ffffff'},
   n10:{w:1,kind:'num',n:10,short:'10',bg:'#9a55ff',fg:'#ffffff'},
@@ -496,6 +505,7 @@ const OUTCOMES={
   plinko:{w:4,kind:'bonus',short:'PLINKO',name:'Plinko of Doom',bg:'#2ad4ff',fg:'#0b1f33',desc:'Drop a puck down the pegs into payouts, traps, a waterfall or a double-stakes re-drop.'},
   crazy:{w:2,kind:'bonus',short:'CRAZY',name:'Crazy Round',bg:'#ff2e4d',fg:'#ffe066',desc:'A second wheel with the biggest payouts and the nastiest punishments.'},
   drag:{w:4,kind:'bonus',short:'DRAG RACE',name:'Drag Race',bg:'#c6ff00',fg:'#141414',desc:'Everyone gets a random car for a quarter-mile race. The winner hands out sips, last place drinks, and somebody always gets the Dacia Duster.'},
+  bridge:{w:4,kind:'bonus',short:'GLASS BRIDGE',name:'Glass Bridge',bg:'#0b3d3a',fg:'#7ff5e1',desc:'Everyone crosses a bridge of glass panels one at a time, picking left or right at every step. Fall and you drink. The first player across hands out sips.'},
   truth:{w:4,kind:'mild',short:'TRUTH',name:'Truth or Shot',desc:'A random player asks you anything. Answer honestly or drink 5.'},
   rule:{w:3,kind:'mild',short:'NEW RULE',name:'Make a Rule',desc:'Add a house rule that lasts the rest of the game.'},
   accent:{w:4,kind:'mild',short:'ACCENT',name:'Accent Curse',desc:'Talk in an accent until your next turn. Every slip costs a sip.'},
@@ -515,7 +525,7 @@ const OUTCOMES={
 };
 const style=k=>{const o=OUTCOMES[k];const s=KIND_STYLE[o.kind]||{};return{bg:o.bg||s.bg,fg:o.fg||s.fg,label:o.short,big:o.kind==='num'}};
 const oname=k=>OUTCOMES[k].name||`Number ${OUTCOMES[k].n}`;
-const TOP_KEYS=['n1','n2','n5','n10','coin','hunt','plinko','crazy','drag'];
+const TOP_KEYS=['n1','n2','n5','n10','coin','hunt','plinko','crazy','drag','bridge'];
 
 // Temporary test odds: outcome → chance in percent. Every other outcome shrinks in proportion.
 // Set this back to {} to return to the normal odds in OUTCOMES above.
@@ -1143,6 +1153,208 @@ R.drag=(b,ctx)=>{
     cv.scrollIntoView({block:'center'});
     let ended=false;const end=()=>{if(!ended&&b.isConnected){ended=true;results()}};
     try{dragRace(cv,rs,end)}catch(e){end()}
+  };
+};
+
+/* ---------- glass bridge ---------- */
+function noiseBurst(d=.45,v=.25,hp=2500){
+  if(S.muted)return;const a=ac();if(!a)return;
+  try{
+    const n=a.sampleRate*d|0,buf=a.createBuffer(1,n,a.sampleRate),ch=buf.getChannelData(0);
+    for(let i=0;i<n;i++)ch[i]=(Math.random()*2-1)*Math.pow(1-i/n,2.2);
+    const s=a.createBufferSource(),f=a.createBiquadFilter(),g=a.createGain();
+    s.buffer=buf;f.type='highpass';f.frequency.value=hp;g.gain.value=v;s.connect(f);f.connect(g).connect(a.destination);s.start();
+  }catch(e){}
+}
+function slide(f0,f1,d,type='sine',v=.08){
+  if(S.muted)return;const a=ac();if(!a)return;
+  try{
+    const o=a.createOscillator(),g=a.createGain(),t=a.currentTime;
+    o.type=type;o.frequency.setValueAtTime(f0,t);o.frequency.exponentialRampToValueAtTime(f1,t+d);
+    g.gain.setValueAtTime(v,t);g.gain.exponentialRampToValueAtTime(.0001,t+d);o.connect(g).connect(a.destination);o.start(t);o.stop(t+d+.05);
+  }catch(e){}
+}
+R.bridge=(b,ctx)=>{
+  const P=S.players.length,N=P<=2?3:Math.min(8,P+1),stake=ctx.bet*ctx.mult,PICK_MS=15000;
+  const COLORS=['#ff4d6d','#ffc83a','#2ad4ff','#3fe08f','#b98cff','#ff8a3d','#f4f1ff','#ff7ab8','#7fdcff','#c6ff00'];
+  // side: -1 is the left panel, 1 the right one
+  const order=shuffle([...S.players]).map((pl,i)=>({pl,n:i+1,color:COLORS[i%COLORS.length],state:'wait',z:-.062,side:(i%2?1:-1)*(.7+Math.min(.42,1.1/Math.max(1,Math.ceil(P/2)-1))*(i>>1)),hop:0,alpha:1,rot:0,drop:0,shiver:0}));
+  const steps=Array.from({length:N},()=>({safe:Math.random()<.5?-1:1,known:false,broken:0,glow:0}));
+  const name=a=>a.pl.name.toUpperCase().slice(0,12),fallMsgs=[],shards=[],tweens=new Set();
+  const st={step:0,pick:null,tense:null,banner:null,pop:null,flash:null,shake:0,done:0};
+  sheet.classList.add('wide');
+  b.innerHTML=`<p class="lead">Cross the bridge one at a time. Every step has one safe panel and one that shatters. Fall and you drink <b>${sips(stake)}</b>. The first player across hands out <b>${sips(stake*3)}</b>.</p>
+  <div class="gb-queue">${order.map(a=>`<span class="gbq" data-n="${a.n}"><i style="background:${a.color}">${a.n}</i>${esc(a.pl.name)}</span>`).join('')}</div>
+  <canvas class="race gb"></canvas>
+  <div class="row gb-ctl"><button class="btn wide" data-go>Start crossing</button></div><div class="gbox"></div>`;
+  const cv=$('canvas',b),dpr=Math.min(window.devicePixelRatio||1,2),W=cv.clientWidth||320,H=Math.round(Math.max(240,Math.min(W*.85,innerHeight*.5,430)));
+  cv.style.height=H+'px';cv.width=Math.round(W*dpr);cv.height=Math.round(H*dpr);
+  const x=cv.getContext('2d'),y0=H*.15,yN=H*.78,C=2.3,gx=Math.min(W*.2,H*.36),pw=gx*.7,U=H*.14,stepLen=.92/N;
+  // simple perspective: z runs from 0 (near edge) to 1 (far edge), things shrink with distance
+  const sc=z=>1/(1+C*z),py=z=>y0+(yN-y0)*sc(z),px=(side,z)=>W/2+side*gx*sc(z),zc=i=>.04+(i+.39)*stepLen;
+  const slab=(z0,z1,xa,xb)=>[[W/2+xa*sc(z0),py(z0)],[W/2+xb*sc(z0),py(z0)],[W/2+xb*sc(z1),py(z1)],[W/2+xa*sc(z1),py(z1)]];
+  const panel=(i,side)=>{const z0=.04+i*stepLen;return slab(z0,z0+.78*stepLen,side*gx-pw,side*gx+pw)};
+  const quad=(q,fill,stroke,lw)=>{x.beginPath();q.forEach(([a,c],i)=>i?x.lineTo(a,c):x.moveTo(a,c));x.closePath();if(fill){x.fillStyle=fill;x.fill()}if(stroke){x.strokeStyle=stroke;x.lineWidth=lw||1;x.stroke()}};
+  const rr=(a,c,w,h,r)=>{x.beginPath();x.roundRect?x.roundRect(a,c,w,h,r):x.rect(a,c,w,h);x.fill()};
+  const tx=(s,X,Y,fill,lw=4)=>{x.lineWidth=lw;x.strokeStyle='rgba(4,6,12,.9)';x.lineJoin='round';x.strokeText(s,X,Y);x.fillStyle=fill;x.fillText(s,X,Y)};
+  const tween=(dur,fn)=>new Promise(res=>{const t0=performance.now(),d=dur*(reduced?.4:1)*1000,step=now=>{const t=Math.min(1,(now-t0)/d);fn(t);if(t>=1){tweens.delete(step);res()}};tweens.add(step)});
+  const wait=s=>tween(s,()=>{});
+  const hopTo=(a,z,side,dur)=>{const za=a.z,sa=a.side;return tween(dur,t=>{a.z=za+(z-za)*t;a.side=sa+(side-sa)*t;a.hop=Math.sin(Math.PI*t)})};
+  const mark=(a,cls)=>{if(cls==='now')b.querySelectorAll('.gbq.now').forEach(el=>el.classList.remove('now'));const el=$(`.gbq[data-n="${a.n}"]`,b);if(el)el.className='gbq '+cls};
+  const exitSide=()=>{const k=st.done++;return(k%2?-1:1)*Math.ceil(k/2)*.55};
+
+  function drawActor(a,now){
+    const s=sc(a.z),u=U*s,X=px(a.side,a.z)+(a.shiver?Math.sin(now/28)*1.8*a.shiver:0),Y=py(a.z)-a.hop*u*.55+a.drop*H*.8,k=1-a.drop*.5;
+    x.save();x.globalAlpha=a.alpha;
+    if(!a.drop){x.fillStyle='rgba(0,0,0,.45)';x.beginPath();x.ellipse(px(a.side,a.z),py(a.z),u*.3,u*.08,0,0,7);x.fill()}
+    x.translate(X,Y-u*.5);x.rotate(a.rot);x.scale(k,k);x.translate(0,u*.5);
+    x.fillStyle='#16232c';x.fillRect(-u*.2,-u*.3,u*.15,u*.3);x.fillRect(u*.05,-u*.3,u*.15,u*.3);
+    x.fillStyle=shadeHex(a.color,-.3);rr(-u*.37,-u*.8,u*.13,u*.38,u*.06);rr(u*.24,-u*.8,u*.13,u*.38,u*.06);
+    x.fillStyle=a.color;rr(-u*.26,-u*.84,u*.52,u*.58,u*.12);
+    x.fillStyle='#f4f1ff';rr(-u*.15,-u*.73,u*.3,u*.25,u*.05);
+    x.fillStyle='#10131a';x.font=`${u*.2}px Bungee, Impact, sans-serif`;x.textAlign='center';x.textBaseline='middle';x.fillText(a.n,0,-u*.595);
+    x.fillStyle='#e9c9a8';x.fillRect(-u*.05,-u*.9,u*.1,u*.08);
+    x.fillStyle='#23232c';x.beginPath();x.arc(0,-u*1.02,u*.16,0,7);x.fill();
+    x.restore();
+  }
+  function shatter(i,side){
+    const q=panel(i,side),x0=Math.min(q[0][0],q[3][0]),x1=Math.max(q[1][0],q[2][0]),s=sc(.04+i*stepLen)*H/300;
+    for(let k=0;k<28;k++)shards.push({x:x0+Math.random()*(x1-x0),y:q[2][1]+Math.random()*(q[0][1]-q[2][1]),vx:(Math.random()-.5)*170*s,vy:-Math.random()*130*s,r:Math.random()*6.28,vr:(Math.random()-.5)*14,s:(4+Math.random()*9)*s,life:1.5});
+    noiseBurst();slide(700,80,.9,'sawtooth',.05);for(let k=0;k<7;k++)beep(2200+rnd(2600),.05,'triangle',.03,.04+k*.07);
+  }
+  let last=performance.now(),lastSec=-1,stop=0;
+  function frame(now){
+    if(!cv.isConnected)return;
+    const dt=Math.min(.05,(now-last)/1000);last=now;
+    [...tweens].forEach(f=>f(now));
+    if(st.pick){
+      const left=PICK_MS-(now-st.pick.t0),sec=Math.ceil(left/1000);
+      if(sec!==lastSec&&sec<=5&&sec>0)beep(sec<=2?990:660,.06,'square',.04);
+      lastSec=sec;
+      if(left<=0){toast(`${st.pick.a.pl.name} took too long and got pushed`);st.pick.done(Math.random()<.5?-1:1)}
+    }
+    x.setTransform(dpr,0,0,dpr,0,0);x.clearRect(0,0,W,H);
+    const sh=st.shake>0&&!reduced?(Math.random()-.5)*10*st.shake:0;st.shake=Math.max(0,st.shake-dt*2.5);
+    x.save();x.translate(sh,sh*.6);
+
+    // the hall: darkness, a faint glow at the far end, a string of bulbs
+    x.fillStyle='#05080f';x.fillRect(-10,-10,W+20,H+20);
+    const gl=x.createRadialGradient(W/2,y0,0,W/2,y0,H*.95);gl.addColorStop(0,'rgba(42,212,255,.16)');gl.addColorStop(1,'rgba(42,212,255,0)');x.fillStyle=gl;x.fillRect(0,0,W,H);
+    for(let j=0;j<34;j++){x.globalAlpha=.55+.45*Math.sin(now/300+j*1.7);x.fillStyle=j%3?'#ffd97a':'#ff7ab8';x.beginPath();x.arc(W*(j+.5)/34,H*.045+Math.sin(j/34*Math.PI*3)*H*.02,Math.max(1.6,H*.007),0,7);x.fill()}
+    x.globalAlpha=1;
+
+    // exit platform and its lit doorway
+    quad(slab(1,1.17,-(gx+pw)*1.5,(gx+pw)*1.5),'#16323a','#3b6f78',1);
+    const ds=sc(1.17),dw=gx*.95*ds,dh=U*2*ds,dy=py(1.17),dg=x.createLinearGradient(0,dy-dh,0,dy);
+    dg.addColorStop(0,'#fff3c4');dg.addColorStop(1,'#ff9d3d');x.shadowColor='#ffb347';x.shadowBlur=26;x.fillStyle=dg;x.fillRect(W/2-dw/2,dy-dh,dw,dh);x.shadowBlur=0;
+
+    // steel frame
+    const bw=pw*.1;
+    for(const t of[-1,1])for(const o of[-1,1]){const c=t*gx+o*(pw+bw);quad(slab(-.01,1,c-bw/2,c+bw/2),'#243242')}
+    for(let i=0;i<=N;i++){const z=.04+i*stepLen-.11*stepLen;x.strokeStyle='#243242';x.lineWidth=Math.max(1.5,5*sc(z));x.beginPath();x.moveTo(W/2-(gx+pw+bw)*sc(z),py(z));x.lineTo(W/2+(gx+pw+bw)*sc(z),py(z));x.stroke()}
+
+    // glass panels, far to near
+    for(let i=N-1;i>=0;i--)for(const side of[-1,1]){
+      const sp=steps[i],q=panel(i,side),s=sc(.04+i*stepLen);
+      if(sp.broken===side){quad(q,null,'rgba(200,240,255,.16)',1);continue}
+      const good=sp.known&&side===sp.safe,bad=sp.known&&side!==sp.safe;
+      quad([q[0],q[1],[q[1][0],q[1][1]+5*s],[q[0][0],q[0][1]+5*s]],'rgba(120,200,240,.3)');
+      quad(q,good?'rgba(63,224,143,.34)':bad?'rgba(255,75,92,.13)':'rgba(150,225,255,.2)',good?'rgba(120,255,190,.95)':bad?'rgba(255,120,130,.5)':'rgba(205,242,255,.8)',Math.max(1,1.6*s));
+      x.save();x.beginPath();q.forEach(([a,c],k)=>k?x.lineTo(a,c):x.moveTo(a,c));x.clip();
+      x.fillStyle='rgba(255,255,255,.16)';const w=q[1][0]-q[0][0];x.beginPath();x.moveTo(q[0][0]+w*.12,q[0][1]);x.lineTo(q[0][0]+w*.34,q[0][1]);x.lineTo(q[3][0]+w*.5,q[3][1]);x.lineTo(q[3][0]+w*.34,q[3][1]);x.fill();
+      if(sp.glow>0&&good){x.fillStyle=`rgba(190,255,220,${sp.glow*.6})`;x.fillRect(0,0,W,H)}
+      if(st.tense&&st.tense.i===i&&st.tense.side===side){x.fillStyle=`rgba(255,255,255,${.12+.12*Math.sin(now/38)})`;x.fillRect(0,0,W,H)}
+      x.restore();
+      if(bad){x.strokeStyle='rgba(255,120,130,.55)';x.lineWidth=Math.max(1,2*s);x.beginPath();x.moveTo(q[0][0],q[0][1]);x.lineTo(q[2][0],q[2][1]);x.moveTo(q[1][0],q[1][1]);x.lineTo(q[3][0],q[3][1]);x.stroke()}
+      if(st.pick&&st.step===i)quad(q,null,`rgba(255,200,58,${.55+.45*Math.sin(now/140)})`,Math.max(2,3.2*s));
+    }
+    // falling glass
+    for(let k=shards.length-1;k>=0;k--){const p=shards[k];p.life-=dt;if(p.life<=0||p.y>H+30){shards.splice(k,1);continue}p.vy+=640*dt;p.x+=p.vx*dt;p.y+=p.vy*dt;p.r+=p.vr*dt;
+      x.save();x.translate(p.x,p.y);x.rotate(p.r);x.globalAlpha=Math.min(1,p.life);x.fillStyle='rgba(190,235,255,.75)';x.strokeStyle='rgba(255,255,255,.9)';x.lineWidth=.8;x.beginPath();x.moveTo(-p.s*.5,p.s*.4);x.lineTo(p.s*.6,p.s*.2);x.lineTo(-p.s*.1,-p.s*.6);x.closePath();x.fill();x.stroke();x.restore()}
+
+    quad(slab(-.1,-.004,-(gx+pw)*1.75,(gx+pw)*1.75),'#18212c','#3a5068',1.5);
+    order.filter(a=>!a.gone).sort((p,q)=>q.z-p.z).forEach(a=>drawActor(a,now));
+    x.restore();
+
+    // HUD
+    x.textBaseline='middle';
+    if(st.tense){const v=x.createRadialGradient(W/2,H/2,H*.25,W/2,H/2,Math.max(W,H)*.7);v.addColorStop(0,'rgba(0,0,0,0)');v.addColorStop(1,'rgba(0,0,0,.6)');x.fillStyle=v;x.fillRect(0,0,W,H)}
+    if(st.flash){x.fillStyle=`rgba(${st.flash.c},${st.flash.a})`;x.fillRect(0,0,W,H);st.flash.a-=dt*1.3;if(st.flash.a<=0)st.flash=null}
+    x.font='13px Bungee, Impact, sans-serif';x.textAlign='left';tx(`STEP ${Math.min(st.step+1,N)}/${N}`,10,H*.13,'#7ff5e1',3);
+    if(st.pick){
+      const left=Math.max(0,PICK_MS-(now-st.pick.t0));
+      x.fillStyle='rgba(255,255,255,.12)';x.fillRect(0,0,W,4);x.fillStyle=left<5000?'#ff4b5c':'#ffc83a';x.fillRect(0,0,W*left/PICK_MS,4);
+      x.textAlign='right';tx(Math.ceil(left/1000)+' S',W-10,H*.13,left<5000?'#ff4b5c':'#ffc83a',3);
+      x.textAlign='center';x.font=`${Math.max(13,Math.min(19,W/24))}px Bungee, Impact, sans-serif`;tx(name(st.pick.a)+': LEFT OR RIGHT?',W/2,H*.955,'#fff');
+    }
+    if(st.pop){st.pop.t+=dt;const p=st.pop,o=Math.max(0,1-p.t/1);x.globalAlpha=o;x.textAlign='center';x.font=`${Math.max(14,U*.42)}px Bungee, Impact, sans-serif`;tx(p.txt,p.x,p.y-p.t*26,p.c);x.globalAlpha=1;if(o<=0)st.pop=null}
+    if(st.banner){const p=st.banner;p.t+=dt;const o=p.hold?1:Math.max(0,Math.min(1,(1.7-p.t)*2));x.globalAlpha=o;x.textAlign='center';x.font=`${Math.max(18,Math.min(36,W/13))}px Bungee, Impact, sans-serif`;tx(p.txt,W/2,H*.47,p.c,6);
+      if(p.sub){x.font='700 15px "Barlow Condensed", sans-serif';tx(p.sub,W/2,H*.47+Math.max(22,W/26),'#fff',3)}x.globalAlpha=1;if(o<=0)st.banner=null}
+    if(!stop||now<stop)requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+
+  const choose=a=>new Promise(res=>{
+    const L=$('[data-side="L"]',b),Rt=$('[data-side="R"]',b);
+    st.pick={a,t0:performance.now(),done:side=>{if(!st.pick)return;st.pick=null;L.disabled=Rt.disabled=true;L.onclick=Rt.onclick=cv.onclick=null;res(side)}};
+    L.disabled=Rt.disabled=false;L.onclick=()=>st.pick&&st.pick.done(-1);Rt.onclick=()=>st.pick&&st.pick.done(1);
+    cv.onclick=e=>{const r=cv.getBoundingClientRect();st.pick&&st.pick.done(e.clientX-r.left<r.width/2?-1:1)};
+  });
+  async function cross(a){
+    a.state='bridge';mark(a,'now');
+    await hopTo(a,-.02,0,.3);
+    for(let i=0;i<N;i++){
+      const sp=steps[i];
+      if(sp.known){beep(420,.04,'triangle',.04);await hopTo(a,zc(i),sp.safe,.24);continue}
+      st.step=i;const side=await choose(a);
+      beep(420,.05,'triangle',.05);await hopTo(a,zc(i),side,.42);beep(170,.08,'sine',.12);
+      // the glass holds its breath: same wait whether it is about to hold or break
+      const hold=reduced?.3:.8+Math.random()*.9;st.tense={i,side};
+      for(let t=0,g=.2;t<hold-.05;t+=g,g=Math.max(.05,g*.82))beep(260+t*220,.04,'triangle',.05,t);
+      await tween(hold,t=>{a.shiver=t});a.shiver=0;st.tense=null;sp.known=true;
+      if(side===sp.safe){
+        sp.glow=1;tween(.7,t=>{sp.glow=1-t});st.flash={c:'63,224,143',a:.3};st.pop={txt:'SAFE',x:px(side,zc(i)),y:py(zc(i))-U*sc(zc(i))*1.4,c:'#3fe08f',t:0};
+        beep(784,.12,'triangle',.08);beep(1175,.22,'triangle',.08,.1);await wait(.45);continue;
+      }
+      sp.broken=side;shatter(i,side);st.flash={c:'255,75,92',a:.5};st.shake=1;
+      a.state='fell';mark(a,'fell');fallMsgs.push(drink(a.pl,stake,`fell at step ${i+1} of the bridge`));
+      st.banner={txt:name(a)+' FELL',sub:'DRINKS '+sips(stake).toUpperCase(),c:'#ff4b5c',t:0};
+      await tween(1.1,t=>{a.drop=t*t;a.rot=t*1.5*side;a.alpha=1-t*t});
+      a.gone=true;await wait(.7);return false;
+    }
+    st.step=N;await hopTo(a,1.08,exitSide(),.4);a.state='done';mark(a,'done');return true;
+  }
+  let finished=false;
+  const finish=first=>{
+    if(finished||!b.isConnected)return;finished=true;stop=performance.now()+2500;
+    const ctl=$('.gb-ctl',b);if(ctl)ctl.remove();
+    if(first){
+      logIt(`${first.pl.name} crossed the glass bridge`);save();renderAll();
+      giveUI($('.gbox',b),first.pl,stake*3,msgs=>endRound(b,[...fallMsgs,...msgs]));
+    }else{
+      logIt('Nobody crossed the glass bridge');
+      endRound(b,fallMsgs,`<p class="verdict">The bridge wins</p><p class="lead" style="text-align:center">Nobody made it across.</p>`);
+    }
+  };
+  $('[data-go]',b).onclick=()=>{
+    ac();const foot=$('.m-foot',sheet);if(foot)foot.remove();
+    $('.gb-ctl',b).innerHTML='<button class="btn cyan" data-side="L" disabled>◀ Left</button><button class="btn pink" data-side="R" disabled>Right ▶</button>';
+    cv.scrollIntoView({block:'center'});
+    (async()=>{
+      let first=null;
+      for(const a of order){if(await cross(a)){first=a;break}}
+      if(first){
+        fanfare();confetti();st.banner={txt:name(first)+' MADE IT',sub:'HANDS OUT '+sips(stake*3).toUpperCase(),c:'#ffc83a',t:0,hold:true};
+        // everyone still waiting knows the way and walks across
+        await Promise.all(order.filter(a=>a.state==='wait').map(async(a,k)=>{
+          a.state='bridge';await wait(.3+k*.24);await hopTo(a,-.02,0,.2);
+          for(let i=0;i<N;i++)await hopTo(a,zc(i),steps[i].safe,.15);
+          await hopTo(a,1.08,exitSide(),.2);a.state='done';mark(a,'done');
+        }));
+        await wait(.5);
+      }else{doom();st.banner={txt:'THE BRIDGE WINS',c:'#ff4b5c',t:0,hold:true};await wait(1.3)}
+      finish(first);
+    })().catch(()=>finish(null));
   };
 };
 
