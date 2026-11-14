@@ -1,5 +1,5 @@
 // Crazy Sips service worker: precaches the whole app so it runs offline.
-const CACHE = 'crazy-sips-893bb8a3f6';
+const CACHE = 'crazy-sips-c413f573bb';
 const ASSETS = [
   "./",
   "./index.html",
