@@ -519,7 +519,7 @@ const TOP_KEYS=['n1','n2','n5','n10','coin','hunt','plinko','crazy','drag'];
 
 // Temporary test odds: outcome → chance in percent. Every other outcome shrinks in proportion.
 // Set this back to {} to return to the normal odds in OUTCOMES above.
-const ODDS_TEST={drag:20};
+const ODDS_TEST={};
 const WEIGHT=(()=>{
   const w=Object.fromEntries(Object.entries(OUTCOMES).map(([k,o])=>[k,o.w]));
   const rest=Object.keys(w).filter(k=>!(k in ODDS_TEST)).reduce((a,k)=>a+w[k],0),test=Object.values(ODDS_TEST).reduce((a,b)=>a+b,0);
