@@ -336,10 +336,6 @@ details.odds summary{font-family:var(--cond);font-weight:700;text-transform:uppe
 /* plinko / crazy */
 .pl-wrap{display:flex;justify-content:center}
 .plinko{display:block;max-width:100%}
-.cwheel{position:relative;width:min(100%,340px);aspect-ratio:1;margin:0 auto}
-.cwheel canvas{width:100%;height:100%;border-radius:50%;box-shadow:0 0 0 4px #000,0 0 0 7px var(--red),0 0 40px rgba(255,46,77,.4)}
-.cwheel .pointer{border-top-color:var(--red);top:-12px;border-left-width:13px;border-right-width:13px;border-top-width:28px}
-.cwheel .hub{inset:40%;font-size:12px;border-color:var(--red);color:var(--red)}
 
 /* drag race */
 .sheet.wide{max-width:920px}
@@ -398,6 +394,28 @@ details.odds summary{font-family:var(--cond);font-weight:700;text-transform:uppe
 @media (min-width:881px){.wheelcol{padding-left:110px}.host{left:-25%;height:66%}}
 @media (max-width:880px){.host-say{left:0;max-width:125%;font-size:13px;padding:6px 10px}}
 @media (prefers-reduced-motion:reduce){.host-fig,.host-head,.host.pull .host-fig,.host[data-mood] .host-fig,.host[data-mood] .host-head{animation:none}}
+
+/* crazy time: the hit and the stage */
+.cz-fx{position:fixed;inset:0;z-index:80;overflow:hidden;pointer-events:none;display:grid;place-items:center}
+.cz-rays{position:absolute;inset:-70%;background:repeating-conic-gradient(from 0deg,rgba(255,46,77,.92) 0 9deg,rgba(255,200,58,.92) 9deg 18deg,rgba(154,85,255,.92) 18deg 27deg,rgba(42,212,255,.92) 27deg 36deg);animation:czSpin 5s linear infinite,czIn .25s ease-out both}
+.cz-dim{position:absolute;inset:0;background:radial-gradient(circle,rgba(14,10,34,.1),rgba(14,10,34,.86))}
+.cz-title{position:relative;font-family:var(--display);line-height:.9;text-align:center;font-size:min(24vw,30vh);color:#fff;text-shadow:0 .05em 0 #b3001b,0 .1em 0 #6b0010,0 0 .45em rgba(255,200,58,.95)}
+.cz-title span{display:block;animation:czSlam .7s cubic-bezier(.2,1.6,.4,1) both}
+.cz-title .t2{color:var(--gold);animation-delay:.3s}
+.cz-flash{position:absolute;inset:0;background:#fff;animation:czFlash .55s ease-out both}
+.cz-door{position:absolute;top:0;bottom:0;width:50.5%;background:linear-gradient(90deg,#7a0014,#d81b3a 50%,#7a0014);box-shadow:inset 0 0 0 8px var(--gold),inset 0 0 0 14px #6b0010;transition:transform .45s cubic-bezier(.6,0,.3,1)}
+.cz-door::after{content:"";position:absolute;top:50%;width:min(14vw,84px);aspect-ratio:1;border-radius:50%;background:radial-gradient(circle at 35% 30%,#fff3c4,#ffc83a 55%,#c98a12);transform:translateY(-50%);box-shadow:0 4px 10px rgba(0,0,0,.5)}
+.cz-door.l{left:0;transform:translateX(-102%)}.cz-door.l::after{right:7%}
+.cz-door.r{right:0;transform:translateX(102%)}.cz-door.r::after{left:7%}
+.cz-fx.shut .cz-door{transform:none}
+.wrap.cz-shake{animation:czShake .7s}
+.cz-ctl{flex-wrap:nowrap}
+.cz-ctl .btn{min-width:0;padding-inline:8px}
+@keyframes czSpin{to{transform:rotate(360deg)}}
+@keyframes czIn{from{opacity:0}}
+@keyframes czSlam{0%{transform:scale(4.5);opacity:0}55%{transform:scale(.88);opacity:1}100%{transform:scale(1);opacity:1}}
+@keyframes czFlash{from{opacity:.95}to{opacity:0}}
+@keyframes czShake{0%,100%{transform:none}15%{transform:translate(-9px,5px)}30%{transform:translate(8px,-6px)}45%{transform:translate(-6px,-4px)}60%{transform:translate(6px,4px)}80%{transform:translate(-3px,2px)}}
 
 .bidbox{display:flex;flex-direction:column;gap:14px;align-items:center;text-align:center;padding:12px;background:var(--bg2);border-radius:14px}
 .bidlist{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
@@ -515,7 +533,7 @@ const OUTCOMES={
   coin:{w:6,kind:'bonus',short:'COIN FLIP',name:'Coin Flip Duel',bg:'#d9dceb',fg:'#1a1240',desc:'Duel a random player. One coin, two multipliers. The loser drinks the bet × the winning multiplier.'},
   hunt:{w:4,kind:'bonus',short:'SIP HUNT',name:'Sip Hunt',bg:'#3fe08f',fg:'#0b2a1a',desc:'Pick one of 36 hidden tiles. Most hide multipliers, some hide traps.'},
   plinko:{w:4,kind:'bonus',short:'PLINKO',name:'Plinko of Doom',bg:'#2ad4ff',fg:'#0b1f33',desc:'Drop a puck down the pegs into payouts, traps, a waterfall or a double-stakes re-drop.'},
-  crazy:{w:2,kind:'bonus',short:'CRAZY',name:'Crazy Round',bg:'#ff2e4d',fg:'#ffe066',desc:'A second wheel with the biggest payouts and the nastiest punishments.'},
+  crazy:{w:2,kind:'bonus',short:'CRAZY',name:'Crazy Time',bg:'#ff2e4d',fg:'#ffe066',desc:'Through the red doors to a second wheel. Pick one of three flappers; DOUBLE and TRIPLE boost every multiplier and spin again.'},
   drag:{w:4,kind:'bonus',short:'DRAG RACE',name:'Drag Race',bg:'#c6ff00',fg:'#141414',desc:'Everyone gets a random car for a quarter-mile race. The winner hands out sips, last place drinks, and somebody always gets the Dacia Duster.'},
   bridge:{w:4,kind:'bonus',short:'GLASS BRIDGE',name:'Glass Bridge',bg:'#0b3d3a',fg:'#7ff5e1',desc:'Everyone crosses a bridge of glass panels one at a time, picking left or right at every step. Fall and you drink. The first player across hands out sips.'},
   truth:{w:4,kind:'mild',short:'TRUTH',name:'Truth or Shot',desc:'A random player asks you anything. Answer honestly or drink 5.'},
@@ -762,19 +780,160 @@ R.plinko=(b,ctx)=>{
     const order=orderFrom(p);logIt(`Plinko waterfall started by ${p.name}`);
     endRound(b,[],`<p class="bigline">Waterfall!</p><div class="order">${order.map(q=>`<span>${esc(q.name)}</span>`).join('<span aria-hidden="true" style="border:0;background:none;padding:0">→</span>')}</div>`)};
 };
+// The hit: "CRAZY TIME" slams in over spinning rays, then red doors close. Resolves with a function that opens the doors.
+function crazyIntro(){
+  if(reduced)return new Promise(res=>setTimeout(()=>res(()=>{}),350));
+  const fx=document.createElement('div');fx.className='cz-fx';
+  fx.innerHTML='<div class="cz-rays"></div><div class="cz-dim"></div><div class="cz-title"><span>CRAZY</span><span class="t2">TIME</span></div><div class="cz-flash"></div><div class="cz-door l"></div><div class="cz-door r"></div>';
+  document.body.appendChild(fx);
+  for(let i=0;i<4;i++)setTimeout(()=>slide(420,1250,.42,'sawtooth',.055),i*440);
+  beep(60,.35,'sine',.3);noiseBurst(.35,.3,300);
+  setTimeout(()=>{beep(60,.35,'sine',.3);noiseBurst(.35,.3,300);fanfare()},300);
+  confetti();setTimeout(confetti,700);
+  const wrap=$('.wrap');wrap.classList.add('cz-shake');setTimeout(()=>wrap.classList.remove('cz-shake'),700);
+  return new Promise(res=>setTimeout(()=>{
+    fx.classList.add('shut');beep(80,.3,'sine',.28,.36);noiseBurst(.2,.2,200);
+    setTimeout(()=>res(()=>{
+      fx.querySelectorAll('.cz-rays,.cz-dim,.cz-title,.cz-flash').forEach(el=>el.remove());
+      fx.classList.remove('shut');setTimeout(()=>fx.remove(),650);
+    }),560);
+  },2000));
+}
 R.crazy=(b,ctx)=>{
-  const CS=['g5','g10','d3','g15','g5','all','g10','fin','g20','g5','oth','g10','g25','d3','g15','g50'];
-  const CST={g5:['×5','#2f7bff','#fff'],g10:['×10','#ffc83a','#1a1240'],g15:['×15','#ff3d8b','#fff'],g20:['×20','#9a55ff','#fff'],g25:['×25','#3fe08f','#0b2a1a'],g50:['×50','#ffffff','#b3001b'],d3:['DRINK ×3','#3d0010','#ff9aa5'],all:['ALL DRINK','#000','#ffc83a'],fin:['FINISH IT','#000','#ff4b5c'],oth:['OTHERS ×3','#11a39a','#fff']};
-  b.innerHTML=`<p class="lead">The Crazy wheel. Multipliers pay out your bet of ${sips(ctx.bet)}${ctx.mult>1?` × ${ctx.mult} Top Slot`:''}. Payouts are capped at ${S.cap} sips.</p><div class="cwheel"><div class="pointer"></div><canvas></canvas><div class="hub"><span>CRAZY</span></div></div><button class="btn wide pink" data-cs>Spin the Crazy wheel</button><div class="gbox"></div>`;
-  const w=new Wheel($('.cwheel canvas',b),CS,k=>({label:CST[k][0],bg:CST[k][1],fg:CST[k][2],big:k[0]==='g'}));
-  $('[data-cs]',b).onclick=async e=>{e.target.remove();const k=await w.spinTo(rnd(CS.length),reduced?1000:4200,tick);const p=ctx.p;
-    if(k[0]==='g'){fanfare();confetti();giveUI($('.gbox',b),p,ctx.bet*(+k.slice(1))*ctx.mult,msgs=>endRound(b,msgs));return}
-    let msgs=[];doom();
+  const p=ctx.p,SEG=['g5','g10','d3','g15','g5','x2','g10','all','g20','g5','oth','g10','g25','x3','g15','fin','g5','g10','d3','g20','g5','x2','g10','g50'];
+  const N=SEG.length,STEP=360/N,FLAP=[{n:'Blue',c:'#2f7bff',a:-30},{n:'Green',c:'#3fe08f',a:0},{n:'Yellow',c:'#ffc83a',a:30}];
+  const COL={5:['#2f7bff','#fff'],10:['#ffc83a','#1a1240'],15:['#ff3d8b','#fff'],20:['#9a55ff','#fff'],25:['#3fe08f','#0b2a1a'],50:['#f4f1ff','#b3001b']};
+  const NASTY={d3:'DRINK ×3',all:'ALL DRINK',fin:'FINISH IT',oth:'OTHERS ×3'};
+  let factor=1,boosts=0,rot=Math.random()*360,pick=null,spinT=null,zoom=1,banner=null,flash=0,shake=0,landed=null,stopAt=0;
+  const label=k=>k[0]==='g'?'×'+(+k.slice(1))*factor:k==='x2'?'DOUBLE':k==='x3'?'TRIPLE':NASTY[k];
+  sheet.classList.add('wide');
+  b.innerHTML=`<p class="lead">Pick a flapper (blue, green or yellow) and the Crazy wheel spins. Multipliers pay out your bet of ${sips(ctx.bet)}${ctx.mult>1?` × ${ctx.mult} Top Slot`:''}. DOUBLE and TRIPLE boost every multiplier and spin again. Payouts are capped at ${S.cap} sips.</p>
+  <canvas class="race cz"></canvas>
+  <div class="row cz-ctl">${FLAP.map((f,i)=>`<button class="btn" data-flap="${i}" style="background:${f.c};color:#10131a" aria-label="${f.n} flapper">${f.n}</button>`).join('')}</div><div class="gbox"></div>`;
+  const cv=$('canvas',b),dpr=Math.min(window.devicePixelRatio||1,2),W=cv.clientWidth||320,H=Math.round(Math.max(270,Math.min(W*.86,innerHeight*.56,480)));
+  cv.style.height=H+'px';cv.width=Math.round(W*dpr);cv.height=Math.round(H*dpr);
+  const x=cv.getContext('2d'),RW=Math.min(W*.4,H*.4),cx=W/2,cy=H*.57,sparks=[],flap=FLAP.map(()=>({d:0,seg:-1}));
+  const tx=(s,X,Y,fill,lw=4)=>{x.lineWidth=lw;x.strokeStyle='rgba(4,2,14,.9)';x.lineJoin='round';x.strokeText(s,X,Y);x.fillStyle=fill;x.fillText(s,X,Y)};
+  const segAt=(a,r)=>((Math.round((((a-r)%360)+360)%360/STEP))%N+N)%N;
+
+  // The wheel face is drawn once per boost into its own canvas, then just rotated every frame.
+  const face=document.createElement('canvas');face.width=face.height=Math.round(RW*2*dpr);
+  function paintFace(){
+    const f=face.getContext('2d'),R=RW*dpr;f.setTransform(1,0,0,1,0,0);f.clearRect(0,0,face.width,face.height);f.translate(R,R);
+    SEG.forEach((k,i)=>{
+      const mid=(i*STEP-90)*Math.PI/180,half=STEP/2*Math.PI/180,g=k[0]==='g',[bg,fg]=g?COL[+k.slice(1)]:k[0]==='x'?['#0b0b10',k==='x2'?'#ffc83a':'#ff3d8b']:['#4a0014','#ffb3bd'];
+      f.beginPath();f.moveTo(0,0);f.arc(0,0,R*.985,mid-half,mid+half);f.closePath();f.fillStyle=bg;f.fill();f.strokeStyle='rgba(6,3,20,.6)';f.lineWidth=1.5*dpr;f.stroke();
+      if(k[0]==='x'){f.save();f.clip();f.strokeStyle=fg;f.globalAlpha=.25;f.lineWidth=R*.03;for(let r=R*.3;r<R;r+=R*.09){f.beginPath();f.arc(0,0,r,mid-half,mid+half);f.stroke()}f.restore()}
+      f.save();f.rotate(mid);f.fillStyle=fg;f.textAlign='right';f.textBaseline='middle';
+      f.font=g?`${R*.115}px Bungee, Impact, sans-serif`:`${R*.07}px Bungee, Impact, sans-serif`;f.fillText(label(k),R*.93,0);f.restore();
+    });
+    for(let i=0;i<N;i++){const a=((i+.5)*STEP-90)*Math.PI/180;f.beginPath();f.arc(Math.cos(a)*R*.955,Math.sin(a)*R*.955,R*.022,0,7);f.fillStyle='#fff3c4';f.fill()}
+    f.beginPath();f.arc(0,0,R*.985,0,7);f.lineWidth=R*.03;f.strokeStyle='#ffc83a';f.stroke();
+  }
+  paintFace();if(document.fonts&&document.fonts.ready)document.fonts.ready.then(paintFace);
+
+  function burst(X,Y,col){for(let i=0;i<26;i++){const a=Math.random()*6.28,v=60+Math.random()*190;sparks.push({x:X,y:Y,vx:Math.cos(a)*v,vy:Math.sin(a)*v-40,life:1,col})}}
+  let last=performance.now(),beat=0;
+  function frame(now){
+    if(!cv.isConnected)return;
+    const dt=Math.min(.05,(now-last)/1000);last=now;let speed=0;
+    if(spinT){
+      const t=Math.min(1,(now-spinT.t0)/spinT.dur),e=1-Math.pow(1-t,3),before=rot;
+      rot=spinT.from+(spinT.to-spinT.from)*e;speed=(rot-before)/Math.max(dt,.001);
+      FLAP.forEach((f,i)=>{const s=segAt(f.a,rot);if(s!==flap[i].seg){flap[i].seg=s;flap[i].d=-Math.min(.55,.12+speed*.0012);if(i===pick)tick()}});
+      zoom+=((t>.7?1.3:1)-zoom)*Math.min(1,dt*3);
+      if(t>.72){beat+=dt;if(beat>.55){beat=0;beep(58,.12,'sine',.16);beep(58,.12,'sine',.1,.17)}}
+      if(t>=1){const done=spinT.done;spinT=null;rot=((rot%360)+360)%360;done()}
+    }else zoom+=(1-zoom)*Math.min(1,dt*2.5);
+    flap.forEach(f=>{f.d*=Math.exp(-dt*11)});
+    flash=Math.max(0,flash-dt*1.8);shake=Math.max(0,shake-dt*2.4);
+    x.setTransform(dpr,0,0,dpr,0,0);x.clearRect(0,0,W,H);
+    const sh=shake>0&&!reduced?(Math.random()-.5)*12*shake:0;
+    x.save();x.translate(sh,sh*.6);
+
+    // stage: dark hall, rotating light rays
+    const bgG=x.createRadialGradient(cx,cy,RW*.2,cx,cy,Math.max(W,H)*.8);bgG.addColorStop(0,'#3a1470');bgG.addColorStop(1,'#07030f');x.fillStyle=bgG;x.fillRect(-12,-12,W+24,H+24);
+    x.save();x.translate(cx,cy);x.rotate(now/5200);for(let i=0;i<14;i++){x.rotate(Math.PI*2/14);x.fillStyle=i%2?'rgba(255,61,139,.07)':'rgba(255,200,58,.08)';x.beginPath();x.moveTo(0,0);x.lineTo(W,-W*.1);x.lineTo(W,W*.1);x.fill()}x.restore();
+
+    // zoom in on the chosen flapper for the last stretch of a spin
+    const fa=pick===null?0:FLAP[pick].a*Math.PI/180,zx=cx+Math.sin(fa)*RW,zy=cy-Math.cos(fa)*RW;
+    x.translate(zx,zy);x.scale(zoom,zoom);x.translate(-zx,-zy);
+
+    // chasing bulbs
+    const chase=Math.floor(now/(spinT?55:160));
+    for(let i=0;i<44;i++){const a=i/44*6.283,on=(i+chase)%4===0;x.beginPath();x.arc(cx+Math.cos(a)*RW*1.1,cy+Math.sin(a)*RW*1.1,RW*(on?.028:.02),0,7);x.fillStyle=on?['#ffc83a','#ff3d8b','#2ad4ff'][i%3]:'#3b2a66';x.shadowColor=x.fillStyle;x.shadowBlur=on?12:0;x.fill()}
+    x.shadowBlur=0;
+    // wheel
+    x.save();x.translate(cx,cy);x.shadowColor='rgba(255,46,77,.6)';x.shadowBlur=30;x.beginPath();x.arc(0,0,RW,0,7);x.fillStyle='#120826';x.fill();x.shadowBlur=0;
+    x.rotate(rot*Math.PI/180);x.drawImage(face,-RW,-RW,RW*2,RW*2);x.restore();
+    // landed segments: the chosen one glows, the others show what could have been
+    if(landed&&!spinT){FLAP.forEach((f,i)=>{const mid=(f.a-90)*Math.PI/180,half=STEP/2*Math.PI/180,mine=i===pick;
+      x.beginPath();x.moveTo(cx,cy);x.arc(cx,cy,RW*.985,mid-half,mid+half);x.closePath();
+      if(mine){x.fillStyle=`rgba(255,255,255,${.14+.14*Math.sin(now/110)})`;x.fill();x.strokeStyle='#fff';x.lineWidth=4}else{x.strokeStyle=f.c;x.lineWidth=2}x.stroke()})}
+    // hub
+    const hub=x.createRadialGradient(cx-RW*.06,cy-RW*.08,0,cx,cy,RW*.26);hub.addColorStop(0,'#ff5b72');hub.addColorStop(1,'#7a0018');
+    x.beginPath();x.arc(cx,cy,RW*.24,0,7);x.fillStyle=hub;x.fill();x.lineWidth=RW*.03;x.strokeStyle='#ffc83a';x.stroke();
+    x.textAlign='center';x.textBaseline='middle';x.font=`${RW*.1}px Bungee, Impact, sans-serif`;x.fillStyle='#ffe066';x.fillText('CRAZY',cx,cy-RW*.045);x.fillText('TIME',cx,cy+RW*.065);
+    // flappers
+    FLAP.forEach((f,i)=>{const a=f.a*Math.PI/180,px=cx+Math.sin(a)*RW*1.07,py=cy-Math.cos(a)*RW*1.07,dim=pick!==null&&pick!==i;
+      x.save();x.translate(px,py);x.rotate(a+flap[i].d);x.globalAlpha=dim?.45:1;
+      if(pick===i){x.shadowColor=f.c;x.shadowBlur=18}
+      x.beginPath();x.moveTo(-RW*.055,-RW*.07);x.lineTo(RW*.055,-RW*.07);x.lineTo(0,RW*.15);x.closePath();x.fillStyle=f.c;x.fill();x.lineWidth=2;x.strokeStyle='#fff';x.stroke();
+      x.shadowBlur=0;x.beginPath();x.arc(0,-RW*.07,RW*.035,0,7);x.fillStyle='#fff3c4';x.fill();x.restore()});
+    // fireworks
+    for(let i=sparks.length-1;i>=0;i--){const s=sparks[i];s.life-=dt*.9;if(s.life<=0){sparks.splice(i,1);continue}s.vy+=170*dt;s.x+=s.vx*dt;s.y+=s.vy*dt;x.globalAlpha=Math.min(1,s.life*1.4);x.fillStyle=s.col;x.fillRect(s.x-1.6,s.y-1.6,3.2,3.2)}
+    x.globalAlpha=1;x.restore();
+
+    // HUD
+    x.textBaseline='middle';
+    if(factor>1){x.textAlign='left';x.font='14px Bungee, Impact, sans-serif';tx('BOOST ×'+factor,10,18,'#ffc83a',3)}
+    if(pick!==null){x.textAlign='right';x.font='700 13px "Barlow Condensed", sans-serif';tx(FLAP[pick].n.toUpperCase()+' FLAPPER',W-10,18,FLAP[pick].c,3)}
+    if(banner){banner.t+=dt;const k=Math.min(1,banner.t/.22),sc=reduced?1:2.4-1.4*(1-Math.pow(1-k,3)),o=banner.hold?1:Math.max(0,Math.min(1,(banner.dur-banner.t)*3));
+      x.save();x.globalAlpha=o*Math.min(1,k*2);x.translate(W/2,H*.5);x.scale(sc,sc);x.textAlign='center';x.font=`${Math.max(22,Math.min(58,W/7.5))}px Bungee, Impact, sans-serif`;tx(banner.txt,0,0,banner.c,8);
+      if(banner.sub){x.font='700 15px "Barlow Condensed", sans-serif';tx(banner.sub,0,Math.max(26,W/15),'#fff',3)}x.restore();if(o<=0)banner=null}
+    if(flash>0){x.fillStyle=`rgba(${flash>0&&landed&&landed.bad?'255,60,80':'255,255,255'},${flash*.7})`;x.fillRect(0,0,W,H)}
+    if(!stopAt||now<stopAt)requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+
+  function finish(k){
+    const ctl=$('.cz-ctl',b);if(ctl)ctl.remove();stopAt=performance.now()+5000;
+    const also=FLAP.map((f,i)=>i===pick?'':`${f.n}: ${label(SEG[segAt(f.a,rot)])}`).filter(Boolean).join(' · ');
+    const note=`<p class="muted small" style="margin:0;text-align:center">The other flappers: ${esc(also)}</p>`;
+    if(k[0]==='g'){$('.gbox',b).insertAdjacentHTML('beforebegin',note);giveUI($('.gbox',b),p,ctx.bet*(+k.slice(1))*factor*ctx.mult,msgs=>endRound(b,msgs));return}
+    let msgs=[];
     if(k==='d3')msgs=[drink(p,ctx.bet*3,'Crazy Round')];
     if(k==='all')msgs=S.players.map(q=>drink(q,ctx.bet*2,'Crazy Round'));
     if(k==='fin')msgs=[drink(p,8,'finished their drink')];
     if(k==='oth'){msgs=others(p).map(q=>drink(q,ctx.bet*3,`${p.name}'s Crazy Round`));p.given+=ctx.bet*3*others(p).length}
-    endRound(b,msgs,`<p class="verdict">${CST[k][0]}</p>`)};
+    endRound(b,msgs,`<p class="verdict">${label(k)}</p>${note}`);
+  }
+  function spinWheel(){
+    const target=rnd(N),off=(Math.random()*.6-.3)*STEP,want=FLAP[pick].a-target*STEP-off,from=rot;
+    const to=from+360*(reduced?2:6)+((((want-from)%360)+360)%360);
+    landed=null;beat=0;flap.forEach((f,i)=>{f.seg=segAt(FLAP[i].a,rot)});
+    spinT={t0:performance.now(),dur:reduced?1500:8600,from,to,done:()=>{
+      const k=SEG[segAt(FLAP[pick].a,rot)];landed={k,bad:!!NASTY[k]};flash=1;
+      if(k[0]==='x'){
+        // boost: every multiplier grows, then the wheel goes again
+        const m=k==='x2'?2:3;factor*=m;boosts++;fanfare();if(!reduced)confetti();shake=.6;
+        banner={txt:k==='x2'?'DOUBLE!':'TRIPLE!',sub:'EVERY MULTIPLIER ×'+m+' · SPINNING AGAIN',c:k==='x2'?'#ffc83a':'#ff3d8b',t:0,dur:2.1};
+        if(boosts>=2)SEG.forEach((s,i)=>{if(s==='x2')SEG[i]='g25';if(s==='x3')SEG[i]='g50'});   // two boosts is the limit
+        paintFace();for(let i=0;i<4;i++)setTimeout(()=>burst(cx+(Math.random()-.5)*RW*2,cy+(Math.random()-.6)*RW*1.6,pick!==null?FLAP[i%3].c:'#fff'),i*160);
+        setTimeout(()=>{if(cv.isConnected)spinWheel()},reduced?700:2300);return;
+      }
+      if(NASTY[k]){doom();shake=1;banner={txt:label(k),c:'#ff4b5c',t:0,dur:9,hold:true}}
+      else{fanfare();if(!reduced)confetti();banner={txt:label(k),sub:'OF YOUR BET',c:'#ffc83a',t:0,dur:9,hold:true};for(let i=0;i<6;i++)setTimeout(()=>burst(cx+(Math.random()-.5)*RW*2.2,cy+(Math.random()-.6)*RW*1.8,['#ffc83a','#ff3d8b','#2ad4ff','#3fe08f'][i%4]),i*170)}
+      setTimeout(()=>{if(cv.isConnected)finish(k)},reduced?300:1300);
+    }};
+    slide(240,880,.6,'sawtooth',.05);
+  }
+  b.querySelectorAll('[data-flap]').forEach(btn=>btn.onclick=()=>{
+    if(pick!==null)return;ac();pick=+btn.dataset.flap;
+    const foot=$('.m-foot',sheet);if(foot)foot.remove();
+    $('.cz-ctl',b).innerHTML=`<p class="muted" style="margin:0;text-align:center;flex:1">${esc(p.name)} is on the <b style="color:${FLAP[pick].c}">${FLAP[pick].n} flapper</b></p>`;
+    cv.scrollIntoView({block:'center'});spinWheel();
+  });
 };
 R.koh=(b,ctx)=>{
   const a=ctx.p,o=randomOther(a),pl=[a,o],deck=makeDeck(),hist=[];let t=0;
@@ -1418,8 +1577,10 @@ async function spin(){
   logIt(`${p.name} spun ${oname(key)}${mult>1?` with Top Slot ×${mult}`:''}`);
   if(mult>1)fanfare();
   // a beat to see where it landed, and the host's reaction, before the outcome screen
-  hostReact(key,mult);await new Promise(r=>setTimeout(r,reduced?350:1200));
+  hostReact(key,mult);
+  const openDoors=key==='crazy'?await crazyIntro():await new Promise(r=>setTimeout(r,reduced?350:1200));
   spinning=false;resolve(key,{p,bet,mult});
+  if(openDoors)setTimeout(openDoors,260);
 }
 function nextTurn(){
   closeModal();S.turn=(S.turn+1)%S.players.length;
