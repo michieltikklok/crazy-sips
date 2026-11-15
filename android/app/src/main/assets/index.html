@@ -221,7 +221,7 @@ details.odds summary{font-family:var(--cond);font-weight:700;text-transform:uppe
 .sect-h{display:flex;align-items:baseline;justify-content:space-between;gap:8px;margin-bottom:10px}
 .sect-h h3{margin:0;font-family:var(--display);font-weight:400;font-size:18px;letter-spacing:.02em}
 .pgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:10px}
-.pc{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:12px;display:flex;flex-direction:column;gap:8px;min-width:0}
+.pc{position:relative;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:12px;display:flex;flex-direction:column;gap:8px;min-width:0}
 .pc.cur{border-color:var(--gold);box-shadow:0 0 0 1px var(--gold),0 0 22px rgba(255,200,58,.2)}
 .pc-top{display:flex;justify-content:space-between;align-items:center;gap:8px}
 .pc-top b{font-size:17px;overflow-wrap:anywhere}
@@ -351,8 +351,6 @@ details.odds summary{font-family:var(--cond);font-weight:700;text-transform:uppe
 .tile.pk{outline:3px solid var(--gold);outline-offset:1px;transform:scale(1.08);z-index:1}
 
 /* plinko / crazy */
-.pl-wrap{display:flex;justify-content:center}
-.plinko{display:block;max-width:100%}
 
 /* drag race */
 .sheet.wide{max-width:920px}
@@ -432,6 +430,35 @@ details.odds summary{font-family:var(--cond);font-weight:700;text-transform:uppe
 @keyframes ixSlam{0%{transform:scale(4.5);opacity:0}55%{transform:scale(.88);opacity:1}100%{transform:scale(1);opacity:1}}
 @keyframes ixFlash{from{opacity:.95}to{opacity:0}}
 @keyframes ixShake{0%,100%{transform:none}15%{transform:translate(-9px,5px)}30%{transform:translate(8px,-6px)}45%{transform:translate(-6px,-4px)}60%{transform:translate(6px,4px)}80%{transform:translate(-3px,2px)}}
+
+/* drink-up board: who drinks how many at the end of a round */
+.sipboard{display:flex;flex-direction:column;gap:8px}
+.sb-head{display:flex;justify-content:space-between;align-items:baseline;gap:10px}
+.sb-head span{font-family:var(--display);font-size:20px;color:var(--pink)}
+.sb-head b{font-family:var(--cond);font-weight:700;text-transform:uppercase;letter-spacing:.08em;font-size:13px;color:var(--muted)}
+.sb-row{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:12px;align-items:center;padding:8px 14px 8px 10px;background:var(--bg2);border:1px solid var(--line);border-left:4px solid var(--pink);border-radius:12px;animation:sbIn .5s cubic-bezier(.2,1.3,.4,1) calc(var(--i)*.38s) both}
+.sb-row.big{border-color:var(--red)}
+.sb-row.done{animation:sbIn .5s cubic-bezier(.2,1.3,.4,1) calc(var(--i)*.38s) both,sbDone .35s ease-out}
+.sb-row.big.done{background:#3d0010}
+.sb-mugbox{width:44px}
+.sb-mug{display:block;width:44px;height:46px;transform-origin:50% 90%;animation:sbTip var(--dur) ease-in-out calc(var(--i)*.38s + .48s) both}
+.sb-beer{transform-box:fill-box;transform-origin:bottom;animation:sbDrain var(--dur) linear calc(var(--i)*.38s + .48s) both}
+.sb-foam{animation:sbFoam var(--dur) linear calc(var(--i)*.38s + .48s) both}
+.sb-who{display:flex;flex-direction:column;min-width:0}
+.sb-who b{font-size:18px;overflow-wrap:anywhere}
+.sb-who span{font-size:13px;color:var(--muted);overflow-wrap:anywhere}
+.sb-n{display:flex;align-items:baseline;gap:6px}
+.sb-n b{font-family:var(--display);font-weight:400;font-size:34px;line-height:1;color:var(--gold);font-variant-numeric:tabular-nums;min-width:1.2ch;text-align:right}
+.sb-row.big .sb-n b{color:var(--red)}
+.sb-n span{font-family:var(--cond);font-weight:700;text-transform:uppercase;letter-spacing:.08em;font-size:13px;color:var(--muted)}
+@keyframes sbIn{from{transform:translateX(-60%);opacity:0}to{transform:none;opacity:1}}
+@keyframes sbDone{0%{transform:scale(1)}40%{transform:scale(1.035)}100%{transform:scale(1)}}
+@keyframes sbTip{0%,100%{transform:rotate(0)}25%,75%{transform:rotate(-20deg)}}
+@keyframes sbDrain{from{transform:scaleY(1)}to{transform:scaleY(.06)}}
+@keyframes sbFoam{from{transform:translateY(0)}to{transform:translateY(30px)}}
+.sipfly{position:absolute;right:12px;top:-4px;font-family:var(--display);font-size:22px;color:var(--pink);text-shadow:0 2px 0 #000;pointer-events:none;animation:sipFly 1.4s ease-out both}
+@keyframes sipFly{0%{transform:translateY(10px) scale(.5);opacity:0}20%{transform:translateY(-8px) scale(1.25);opacity:1}70%{opacity:1}100%{transform:translateY(-38px) scale(1);opacity:0}}
+@media (prefers-reduced-motion:reduce){.sb-row,.sb-mug,.sb-beer,.sb-foam,.sipfly{animation:none}}
 
 .bidbox{display:flex;flex-direction:column;gap:14px;align-items:center;text-align:center;padding:12px;background:var(--bg2);border-radius:14px}
 .bidlist{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
@@ -611,11 +638,14 @@ const randomOther=p=>pick(others(p));
 const initial=p=>(p.name.trim()[0]||'?').toUpperCase();
 const newPlayer=name=>({id:S.nextId++,name,drunk:0,given:0,hist:[],badges:{}});
 function logIt(t){S.log.unshift({t,at:Date.now()});S.log=S.log.slice(0,80)}
+// Sips dealt since the round's outcome opened (for the drink-up board), and "+N" pops waiting to show on player cards.
+let roundSips=[],sipFlies=[];
+function noteSips(p,n,why){roundSips.push({id:p.id,n,why});sipFlies.push({id:p.id,n,at:Date.now()})}
 function addSips(p,n){p.drunk+=n;p.hist.push([Date.now(),n]);if(p.hist.length>300)p.hist.shift()}
 function drink(p,n,why){
   if(!p||n<=0)return '';
-  addSips(p,n);let msg=`${p.name} drinks ${sips(n)}${why?` (${why})`:''}`;
-  if(S.buddy&&S.buddy.includes(p.id)){const b=P(S.buddy.find(i=>i!==p.id));if(b){addSips(b,n);msg+=` + buddy ${b.name} drinks ${n}`}}
+  addSips(p,n);let msg=`${p.name} drinks ${sips(n)}${why?` (${why})`:''}`;noteSips(p,n,why);
+  if(S.buddy&&S.buddy.includes(p.id)){const b=P(S.buddy.find(i=>i!==p.id));if(b){addSips(b,n);msg+=` + buddy ${b.name} drinks ${n}`;noteSips(b,n,`buddy of ${p.name}`)}}
   logIt(msg);return msg;
 }
 function payout(raw,p,noCap){
@@ -722,10 +752,35 @@ function giveUI(box,giver,raw,done,opts={}){
 const modal=$('#modal'),sheet=$('#sheet');
 function openSheet(head,html,foot=''){sheet.innerHTML=head+`<div class="m-body">${html}</div>`+foot;modal.hidden=false;modal.scrollTop=0;return $('.m-body',sheet)}
 function closeModal(){modal.hidden=true;sheet.innerHTML='';sheet.classList.remove('wide')}
+const MUG='<svg class="sb-mug" viewBox="0 0 50 52" aria-hidden="true"><path d="M36,17h5a6,6 0 0 1 6,6v9a6,6 0 0 1-6,6h-5" fill="none" stroke="#f4f1ff" stroke-width="4"/><rect x="6" y="7" width="30" height="41" rx="5" fill="rgba(255,255,255,.1)" stroke="#f4f1ff" stroke-width="3"/><rect class="sb-beer" x="9.5" y="12" width="23" height="32.5" rx="2.5" fill="#ffb300"/><rect class="sb-foam" x="9.5" y="9" width="23" height="7" rx="3.5" fill="#ffffff"/></svg>';
+// Everyone who drinks this round, biggest first: mugs slide in, drain, and the sips count up.
+function sipBoard(){
+  const by=new Map();
+  roundSips.forEach(e=>{const g=by.get(e.id)||{n:0,why:[]};g.n+=e.n;if(e.why&&!g.why.includes(e.why))g.why.push(e.why);by.set(e.id,g)});
+  const rows=[...by].map(([id,g])=>({pl:P(id),...g})).filter(r=>r.pl).sort((a,c)=>c.n-a.n);
+  if(!rows.length)return '';
+  const total=rows.reduce((a,r)=>a+r.n,0);
+  return `<div class="sipboard"><div class="sb-head"><span>Drink up</span><b>${sips(total)} dealt</b></div>${rows.map((r,i)=>`<div class="sb-row${r.n>=8?' big':''}" style="--i:${i};--dur:${Math.min(1400,220+r.n*150)}ms"><div class="sb-mugbox">${MUG}</div><div class="sb-who"><b>${esc(r.pl.name)}</b><span>${esc(r.why.slice(0,2).join(' · '))}</span></div><div class="sb-n"><b data-n="${r.n}">${reduced?r.n:0}</b><span>${r.n===1?'sip':'sips'}</span></div></div>`).join('')}</div>`;
+}
+function runSipBoard(root){
+  if(reduced)return;
+  root.querySelectorAll('.sb-row').forEach((row,i)=>{
+    const el=$('[data-n]',row),n=+el.dataset.n,dur=Math.min(1400,220+n*150);
+    setTimeout(()=>{
+      if(!row.isConnected)return;beep(2300,.05,'triangle',.05);beep(3100,.07,'triangle',.04,.04);
+      const t0=performance.now();let shown=0;
+      const tickUp=now=>{
+        if(!row.isConnected)return;const v=Math.min(n,Math.ceil((now-t0)/dur*n));
+        if(v!==shown){shown=v;el.textContent=v;beep(150+rnd(50),.05,'sine',.12)}
+        if(v<n)requestAnimationFrame(tickUp);else{row.classList.add('done');if(n>=8)beep(70,.25,'sine',.25)}
+      };requestAnimationFrame(tickUp);
+    },i*380+480);
+  });
+}
 function endRound(body,msgs=[],extra=''){
-  const m=msgs.filter(Boolean);const d=document.createElement('div');d.className='result';
-  d.innerHTML=`${extra}${m.length?`<ul class="drinks">${m.map(x=>`<li>${esc(x)}</li>`).join('')}</ul>`:''}<button class="btn wide pink" data-next>Next player →</button>`;
-  body.appendChild(d);save();renderAll();
+  const d=document.createElement('div');d.className='result';
+  d.innerHTML=`${extra}${sipBoard()}<button class="btn wide pink" data-next>Next player →</button>`;
+  body.appendChild(d);save();renderAll();runSipBoard(d);
   $('[data-next]',d).onclick=nextTurn;
   const sk=$('.m-foot',sheet);if(sk)sk.remove();
   setTimeout(()=>d.scrollIntoView({block:'nearest',behavior:reduced?'auto':'smooth'}),50);
@@ -765,36 +820,106 @@ R.hunt=(b,ctx)=>{
     endRound(b,msgs,`<p class="verdict">${esc(x.l)}</p>`)};
 };
 R.plinko=(b,ctx)=>{
-  const SL=[['GIVE','×15',{g:15}],['DRINK','2×BET',{d:2}],['GIVE','×5',{g:5}],['DOUBLE','DROP',{x:1}],['GIVE','×2',{g:2}],['DRINK','BET',{d:1}],['GIVE','×3',{g:3}],['WATER','FALL',{w:1}],['GIVE','×10',{g:10}]];
+  const p=ctx.p,ROWS=10,SL=[['DRINK','2×BET',{d:2}],['GIVE','×15',{g:15}],['GIVE','×3',{g:3}],['DOUBLE','DROP',{x:1}],['GIVE','×2',{g:2}],['WATER','FALL',{w:1}],['GIVE','×5',{g:5}],['GIVE','×10',{g:10}],['DRINK','BET',{d:1}]];   // the walls make the edge slots easiest to hit, so those are the drinks
+  const NS=SL.length,tone=s=>s.g?'#3fe08f':s.d?'#ff4b5c':s.x?'#ffc83a':'#2ad4ff';
   let factor=ctx.mult;
-  b.innerHTML=`<p class="lead">Drop the puck. Payouts use your bet of ${sips(ctx.bet)}<span class="fx">${factor>1?` × ${factor}`:''}</span>. DOUBLE drops again with double stakes.</p><div class="pl-wrap"><canvas class="plinko"></canvas></div><button class="btn wide cyan" data-drop>Drop the puck</button><div class="gbox"></div>`;
-  const cv=$('.plinko',b),W=Math.min(b.clientWidth-40||320,460),d=Math.min(devicePixelRatio||1,2);
-  const sw=W/9,rh=sw*.82,top=sw*.9,slotTop=top+8*rh,H=slotTop+sw*1.5,cx=W/2;
-  cv.style.width=W+'px';cv.style.height=H+'px';cv.width=W*d;cv.height=H*d;const x=cv.getContext('2d');x.scale(d,d);
-  const col=s=>s.g?['#103a26','#3fe08f']:s.d?['#3d0010','#ff9aa5']:s.x?['#000000','#ffc83a']:['#0b2a44','#2ad4ff'];
-  const draw=(px,py,hl)=>{x.clearRect(0,0,W,H);
-    for(let r=0;r<8;r++)for(let k=0;k<=r;k++){x.beginPath();x.arc(cx+(k-r/2)*sw,top+r*rh,Math.max(2.5,sw*.08),0,Math.PI*2);x.fillStyle='#c9c1f2';x.fill()}
-    SL.forEach((s,j)=>{const [bg,fg]=col(s[2]);x.fillStyle=bg;x.fillRect(j*sw+2,slotTop,sw-4,sw*1.4);if(hl===j){x.strokeStyle='#ffffff';x.lineWidth=3;x.strokeRect(j*sw+3.5,slotTop+1.5,sw-7,sw*1.4-3)}
-      x.fillStyle=fg;x.textAlign='center';x.textBaseline='middle';x.font=`700 ${Math.max(9,sw*.26)}px "Barlow Condensed", "Arial Narrow", sans-serif`;x.fillText(s[0],j*sw+sw/2,slotTop+sw*.45);x.fillText(s[1],j*sw+sw/2,slotTop+sw*.9)});
-    if(px!=null){x.beginPath();x.arc(px,py,sw*.22,0,Math.PI*2);x.fillStyle='#ffc83a';x.fill();x.lineWidth=2;x.strokeStyle='#000';x.stroke()}};
-  draw();
-  const drop=()=>new Promise(res=>{
-    let rights=0;const pts=[[cx,top-rh*1.1]];
-    for(let r=0;r<8;r++){pts.push([cx+(rights-r/2)*sw,top+r*rh-sw*.3]);if(Math.random()<.5)rights++}
-    pts.push([cx+(rights-4)*sw,slotTop+sw*.2]);
-    const seg=reduced?60:230;let i=0,t0=performance.now();
-    const f=now=>{let t=(now-t0)/seg;while(t>=1&&i<pts.length-2){i++;t0+=seg;t=(now-t0)/seg;beep(700+rnd(500),.03,'square',.03)}
-      t=Math.min(1,t);const [ax,ay]=pts[i],[bx,by]=pts[i+1];draw(ax+(bx-ax)*t,ay+(by-ay)*t-Math.sin(Math.PI*t)*rh*.45);
-      if(i>=pts.length-2&&t>=1){draw(bx,by,rights);res(rights)}else requestAnimationFrame(f)};
-    requestAnimationFrame(f)});
-  const btn=$('[data-drop]',b);
-  btn.onclick=async()=>{btn.disabled=true;const j=await drop();const s=SL[j][2],p=ctx.p;
-    if(s.x){fanfare();factor*=2;$('.fx',b).textContent=` × ${factor}`;btn.textContent=`Drop again (stakes ×${factor})`;btn.disabled=false;return}
-    btn.remove();
-    if(s.g){fanfare();if(s.g>=10)confetti();giveUI($('.gbox',b),p,ctx.bet*s.g*factor,msgs=>endRound(b,msgs));return}
-    if(s.d){doom();endRound(b,[drink(p,ctx.bet*s.d,'Plinko')]);return}
-    const order=orderFrom(p);logIt(`Plinko waterfall started by ${p.name}`);
-    endRound(b,[],`<p class="bigline">Waterfall!</p><div class="order">${order.map(q=>`<span>${esc(q.name)}</span>`).join('<span aria-hidden="true" style="border:0;background:none;padding:0">→</span>')}</div>`)};
+  b.innerHTML=`<p class="lead">The puck slides along the top. Hit Drop to let it go and watch it bounce. Payouts use your bet of ${sips(ctx.bet)}<span class="fx">${factor>1?` × ${factor}`:''}</span>. The edges make you drink. DOUBLE drops again with double stakes.</p>
+  <canvas class="race pk"></canvas><div class="row pk-ctl"><button class="btn wide cyan" data-drop>Drop!</button></div><div class="gbox"></div>`;
+  const cv=$('canvas',b),btn=$('[data-drop]',b),dpr=Math.min(window.devicePixelRatio||1,2),W=cv.clientWidth||320,H=Math.round(Math.max(300,Math.min(W*1.08,innerHeight*.6,540)));
+  cv.style.height=H+'px';cv.width=Math.round(W*dpr);cv.height=Math.round(H*dpr);
+  const x=cv.getContext('2d'),BW=Math.min(W,H*1.02),bx=(W-BW)/2,sw=BW/NS,top=H*.12,slotH=Math.max(40,H*.13),floor=H-8,rh=(H-top-slotH-8)/ROWS,pr=sw*.21,pegR=Math.max(2.5,sw*.075);
+  const pegs=[];for(let r=0;r<ROWS;r++){const y=top+rh*(r+.75);if(r%2===0)for(let k=0;k<NS;k++)pegs.push({x:bx+(k+.5)*sw,y,r,hit:-9});else for(let k=1;k<NS;k++)pegs.push({x:bx+k*sw,y,r,hit:-9})}
+  const yDiv=top+rh*(ROWS-.25),G=H*2.5,AMP=BW/2-pr-4,sparks=[],trail=[],PERIOD=2.3,aim=t=>{const u=((t/PERIOD)%1+1)%1;return(u<.5?4*u-1:3-4*u)*AMP};
+  const pk={x:W/2,y:top*.5,vx:0,vy:0,state:'aim',slot:-1,t0:0};
+  let last=performance.now(),clock=Math.random()*PERIOD,lastPlink=0,banner=null,flash=null,shake=0,ring=null,lit=-1,stopAt=0;   // the slider starts somewhere random
+  const tx=(s,X,Y,fill,lw=4)=>{x.lineWidth=lw;x.strokeStyle='rgba(4,2,14,.9)';x.lineJoin='round';x.strokeText(s,X,Y);x.fillStyle=fill;x.fillText(s,X,Y)};
+  function land(k){
+    pk.state='landed';lit=k;const s=SL[k][2],c=tone(s);
+    ring={x:pk.x,y:pk.y,t:0,c};for(let i=0;i<34;i++){const a=-Math.random()*Math.PI,v=80+Math.random()*260;sparks.push({x:pk.x,y:pk.y,vx:Math.cos(a)*v,vy:Math.sin(a)*v,life:1,c})}
+    if(s.d){doom();shake=1;flash={c:'255,60,80',a:.5};banner={txt:s.d>1?'DRINK DOUBLE!':'DRINK!',c:'#ff4b5c',t:0}}
+    else if(s.x){fanfare();shake=.5;flash={c:'255,200,58',a:.5};banner={txt:'DOUBLE!',sub:'STAKES ×'+factor*2+' · DROP AGAIN',c:'#ffc83a',t:0}}
+    else if(s.w){beep(660,.2,'triangle',.08);beep(880,.3,'triangle',.08,.15);flash={c:'42,212,255',a:.4};banner={txt:'WATERFALL!',c:'#2ad4ff',t:0}}
+    else{fanfare();if(!reduced&&s.g>=10)confetti();flash={c:'63,224,143',a:.35};banner={txt:'×'+s.g*factor,sub:'OF YOUR BET',c:'#3fe08f',t:0}}
+    setTimeout(()=>{
+      if(!cv.isConnected)return;
+      if(s.x){factor*=2;$('.fx',b).textContent=` × ${factor}`;lit=-1;trail.length=0;pk.state='aim';btn.disabled=false;btn.textContent=`Drop again (stakes ×${factor})`;return}
+      $('.pk-ctl',b).remove();stopAt=performance.now()+4000;
+      if(s.g){giveUI($('.gbox',b),p,ctx.bet*s.g*factor,msgs=>endRound(b,msgs));return}
+      if(s.d){endRound(b,[drink(p,ctx.bet*s.d,'Plinko')]);return}
+      const order=orderFrom(p);logIt(`Plinko waterfall started by ${p.name}`);
+      endRound(b,[],`<p class="bigline">Waterfall!</p><div class="order">${order.map(q=>`<span>${esc(q.name)}</span>`).join('<span aria-hidden="true" style="border:0;background:none;padding:0">→</span>')}</div>`);
+    },reduced?400:1500);
+  }
+  function step(h){   // one small physics step: gravity, pegs, walls, slot dividers, floor
+    pk.vy+=G*h;pk.x+=pk.vx*h;pk.y+=pk.vy*h;
+    if(pk.x<bx+pr){pk.x=bx+pr;pk.vx=Math.abs(pk.vx)*.6}if(pk.x>bx+BW-pr){pk.x=bx+BW-pr;pk.vx=-Math.abs(pk.vx)*.6}
+    for(const g of pegs){
+      const dx=pk.x-g.x,dy=pk.y-g.y,d2=dx*dx+dy*dy,m=pr+pegR;if(d2>=m*m)continue;
+      const d=Math.sqrt(d2)||1,nx=dx/d,ny=dy/d,vn=pk.vx*nx+pk.vy*ny;pk.x=g.x+nx*m;pk.y=g.y+ny*m;
+      if(vn<0){
+        pk.vx-=1.52*vn*nx;pk.vy-=1.52*vn*ny;pk.vx+=(Math.random()-.5)*36;
+        if(vn<-40){g.hit=clock;for(let i=0;i<4;i++)sparks.push({x:g.x,y:g.y,vx:(Math.random()-.5)*160,vy:-Math.random()*140,life:.6,c:'#2ad4ff'});
+          if(clock-lastPlink>.045){lastPlink=clock;beep(520+(ROWS-g.r)*85,.05,'triangle',.05)}}
+      }
+    }
+    if(pk.y>yDiv){
+      if(pk.slot<0)pk.slot=Math.max(0,Math.min(NS-1,Math.floor((pk.x-bx)/sw)));
+      const lo=bx+pk.slot*sw+pr+1,hi=bx+(pk.slot+1)*sw-pr-1;
+      if(pk.x<lo){pk.x=lo;pk.vx=Math.abs(pk.vx)*.4}if(pk.x>hi){pk.x=hi;pk.vx=-Math.abs(pk.vx)*.4}
+    }
+    if(pk.y>floor-pr){pk.y=floor-pr;if(Math.abs(pk.vy)<H*.22)return true;pk.vy=-pk.vy*.36;beep(180,.05,'sine',.1)}
+    return false;
+  }
+  function frame(now){
+    if(!cv.isConnected)return;
+    const dt=Math.min(.04,(now-last)/1000);last=now;clock+=dt;
+    if(pk.state==='aim'){pk.x=W/2+aim(clock);pk.y=top*.5}
+    else if(pk.state==='fall'){
+      const slow=!reduced&&pk.y>top+rh*(ROWS-2)?.45:1;   // slow motion for the last two rows
+      for(let i=0;i<5&&pk.state==='fall';i++)if(step(dt*slow/5)||clock-pk.t0>14){land(pk.slot<0?Math.max(0,Math.min(NS-1,Math.floor((pk.x-bx)/sw))):pk.slot)}
+      trail.push([pk.x,pk.y]);if(trail.length>16)trail.shift();
+    }
+    shake=Math.max(0,shake-dt*2.4);
+    x.setTransform(dpr,0,0,dpr,0,0);x.clearRect(0,0,W,H);
+    const sh=shake>0&&!reduced?(Math.random()-.5)*10*shake:0;x.save();x.translate(sh,sh*.6);
+    const bgG=x.createLinearGradient(0,0,0,H);bgG.addColorStop(0,'#0b1730');bgG.addColorStop(1,'#07030f');x.fillStyle=bgG;x.fillRect(-12,-12,W+24,H+24);
+    x.fillStyle='rgba(42,212,255,.05)';x.fillRect(bx,0,BW,H);
+    x.strokeStyle='rgba(42,212,255,.6)';x.lineWidth=2;x.shadowColor='#2ad4ff';x.shadowBlur=10;x.beginPath();x.moveTo(bx,top*.2);x.lineTo(bx,H-4);x.moveTo(bx+BW,top*.2);x.lineTo(bx+BW,H-4);x.stroke();x.shadowBlur=0;
+    // slots
+    x.textAlign='center';x.textBaseline='middle';
+    SL.forEach((s,k)=>{const c=tone(s[2]),on=lit===k,X=bx+k*sw,pulse=.5+.5*Math.sin(now/260+k);
+      x.fillStyle=on?c:'rgba(10,8,26,.9)';x.fillRect(X+2,H-slotH-4,sw-4,slotH);x.strokeStyle=c;x.globalAlpha=on?1:.55+.45*pulse;x.lineWidth=2;x.shadowColor=c;x.shadowBlur=on?22:8;x.strokeRect(X+2,H-slotH-4,sw-4,slotH);x.shadowBlur=0;x.globalAlpha=1;
+      x.fillStyle=on?'#06040f':c;x.font=`700 ${Math.max(8,sw*.25)}px "Barlow Condensed", sans-serif`;x.fillText(s[0],X+sw/2,H-slotH*.64-4);
+      x.font=`${Math.max(9,sw*.3)}px Bungee, Impact, sans-serif`;x.fillText(s[2].g?'×'+s[2].g*factor:s[1],X+sw/2,H-slotH*.28-4)});
+    x.strokeStyle='rgba(255,255,255,.35)';x.lineWidth=2;for(let k=1;k<NS;k++){x.beginPath();x.moveTo(bx+k*sw,yDiv);x.lineTo(bx+k*sw,H-slotH-4);x.stroke()}
+    // pegs light up when hit
+    for(const g of pegs){const a=Math.max(0,1-(clock-g.hit)/.45);x.beginPath();x.arc(g.x,g.y,pegR*(1+a*.9),0,7);x.fillStyle=a>0?`rgb(${Math.round(200+55*a)},${Math.round(193+62*a)},${Math.round(242-140*a)})`:'#c9c1f2';x.shadowColor='#ffe066';x.shadowBlur=a*16;x.fill()}
+    x.shadowBlur=0;
+    // aiming rail
+    if(pk.state==='aim'){x.strokeStyle='rgba(255,255,255,.25)';x.lineWidth=2;x.setLineDash([6,6]);x.beginPath();x.moveTo(bx+pr,top*.5);x.lineTo(bx+BW-pr,top*.5);x.stroke();x.setLineDash([]);
+      x.fillStyle='rgba(42,212,255,.25)';x.beginPath();x.moveTo(pk.x-pr*.7,top*.5+pr*1.5);x.lineTo(pk.x+pr*.7,top*.5+pr*1.5);x.lineTo(pk.x,top*.5+pr*2.6);x.fill()}
+    // sparks, trail, puck
+    for(let i=sparks.length-1;i>=0;i--){const s=sparks[i];s.life-=dt*1.6;if(s.life<=0){sparks.splice(i,1);continue}s.vy+=500*dt;s.x+=s.vx*dt;s.y+=s.vy*dt;x.globalAlpha=Math.min(1,s.life*1.5);x.fillStyle=s.c;x.fillRect(s.x-1.5,s.y-1.5,3,3)}
+    x.globalAlpha=1;
+    trail.forEach(([tx0,ty0],i)=>{x.beginPath();x.arc(tx0,ty0,pr*(.3+.6*i/trail.length),0,7);x.fillStyle=`rgba(42,212,255,${.04+.22*i/trail.length})`;x.fill()});
+    if(ring){ring.t+=dt;const u=ring.t/.6;if(u>=1)ring=null;else{x.beginPath();x.arc(ring.x,ring.y,pr+u*sw*1.6,0,7);x.strokeStyle=ring.c;x.globalAlpha=1-u;x.lineWidth=4;x.stroke();x.globalAlpha=1}}
+    const pg=x.createRadialGradient(pk.x-pr*.3,pk.y-pr*.3,0,pk.x,pk.y,pr);pg.addColorStop(0,'#ffffff');pg.addColorStop(.45,'#7fe6ff');pg.addColorStop(1,'#1296c9');
+    if(pk.state==='landed')pk.fade=Math.max(.18,(pk.fade||1)-dt*1.6);else pk.fade=1;
+    x.globalAlpha=pk.fade;x.beginPath();x.arc(pk.x,pk.y,pr,0,7);x.fillStyle=pg;x.shadowColor='#2ad4ff';x.shadowBlur=20;x.fill();x.shadowBlur=0;x.globalAlpha=1;
+    x.restore();
+    // HUD
+    if(factor>1){x.textAlign='left';x.font='13px Bungee, Impact, sans-serif';tx('STAKES ×'+factor,10,16,'#ffc83a',3)}
+    if(flash){x.fillStyle=`rgba(${flash.c},${flash.a})`;x.fillRect(0,0,W,H);flash.a-=dt*1.4;if(flash.a<=0)flash=null}
+    if(banner){banner.t+=dt;const k=Math.min(1,banner.t/.22),sc=reduced?1:2.4-1.4*(1-Math.pow(1-k,3)),o=Math.max(0,Math.min(1,(1.5-banner.t)*3));
+      x.save();x.globalAlpha=o*Math.min(1,k*2);x.translate(W/2,H*.42);x.scale(sc,sc);x.textAlign='center';x.font=`${Math.max(20,Math.min(48,W/9))}px Bungee, Impact, sans-serif`;tx(banner.txt,0,0,banner.c,7);
+      if(banner.sub){x.font='700 14px "Barlow Condensed", sans-serif';tx(banner.sub,0,Math.max(24,W/16),'#fff',3)}x.restore();if(o<=0)banner=null}
+    if(!stopAt||now<stopAt)requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+  btn.onclick=()=>{
+    if(pk.state!=='aim')return;ac();btn.disabled=true;const foot=$('.m-foot',sheet);if(foot)foot.remove();
+    pk.state='fall';pk.slot=-1;pk.t0=clock;pk.vx=(aim(clock+.01)-aim(clock))/.01*.3;pk.vy=0;slide(900,300,.25,'triangle',.06);
+  };
 };
 R.crazy=(b,ctx)=>{
   const p=ctx.p,SEG=['g5','g10','d3','g15','g5','x2','g10','all','g20','g5','oth','g10','g25','x3','g15','fin','g5','g10','d3','g20','g5','x2','g10','g50'];
@@ -1529,6 +1654,7 @@ R.bridge=(b,ctx)=>{
 R.miss=(b,ctx)=>{doom();b.innerHTML=`<p class="lead">The house wins. ${esc(ctx.p.name)} drank ${sips(ctx.bet)} for nothing.</p>`;endRound(b,[])};
 
 function resolve(key,ctx){
+  roundSips=[];
   const o=OUTCOMES[key],st=style(key);
   const head=`<div class="m-head" style="--c:${st.bg};--cf:${st.fg}"><span class="m-kind">${KIND[o.kind]} · ${pct(WEIGHT[key])} · ${esc(ctx.p.name)}</span><h2>${o.kind==='num'?`× ${o.n}`:esc(o.name)}</h2>${ctx.mult>1?`<span class="ts-hit">TOP SLOT ×${ctx.mult}</span>`:''}</div>`;
   const body=openSheet(head,'',`<div class="m-foot"><button class="linkbtn" data-skip>Skip this round</button></div>`);
@@ -1776,6 +1902,10 @@ function renderAll(){
     if(recent(q)>=S.mercy)bd.push('<span class="badge water" title="Drank a lot in the last 30 minutes">Water allowed</span>');
     return`<div class="pc ${q===p?'cur':''}"><div class="pc-top"><b>${esc(q.name)}</b><button class="plus" data-plus="${q.id}" aria-label="${esc(q.name)} drinks 1 sip">+1</button></div><div class="pc-stats"><span><b>${q.drunk}</b>drunk</span><span><b>${q.given}</b>given</span></div>${bd.length?`<div class="badges">${bd.join('')}</div>`:''}</div>`}).join('');
   $('#rules').innerHTML=S.rules.length?`<ul class="rules">${S.rules.map((r,i)=>`<li><span>${esc(r.t)} <span class="muted small">· ${esc(r.by)}</span></span><button class="x" data-rm="${i}" aria-label="Remove rule">×</button></li>`).join('')}</ul>`:'<p class="empty">No house rules yet. Spin Make a Rule to add one.</p>';
+  if(modal.hidden)sipFlies.splice(0).forEach(f=>{
+    if(Date.now()-f.at>90000)return;const btn=$(`[data-plus="${f.id}"]`);if(!btn)return;
+    const el=document.createElement('span');el.className='sipfly';el.textContent='+'+f.n;btn.closest('.pc').appendChild(el);setTimeout(()=>el.remove(),1500);
+  });
   $('#log').innerHTML=S.log.length?`<ul class="loglist">${S.log.slice(0,40).map(l=>`<li><time>${new Date(l.at).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}</time>${esc(l.t)}</li>`).join('')}</ul>`:'<p class="empty">Every sip shows up here.</p>';
 }
 $('#players').onclick=e=>{const b=e.target.closest('[data-plus]');if(!b)return;toast(drink(P(+b.dataset.plus),1,'penalty'));save();renderAll()};
