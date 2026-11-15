@@ -640,15 +640,149 @@ function payout(raw,p,noCap){
 const recent=p=>p.hist.filter(h=>Date.now()-h[0]<30*60*1000).reduce((a,h)=>a+h[1],0);
 
 /* ---------- sound ---------- */
-let AC=null,lastTick=0;
-function ac(){try{if(!AC)AC=new(window.AudioContext||window.webkitAudioContext)();if(AC.state==='suspended')AC.resume()}catch(e){}return AC}
-function beep(f,d=.05,type='square',v=.05,when=0){
-  if(S.muted)return;const a=ac();if(!a)return;
-  try{const o=a.createOscillator(),g=a.createGain(),t=a.currentTime+when;o.type=type;o.frequency.value=f;g.gain.setValueAtTime(v,t);g.gain.exponentialRampToValueAtTime(.0001,t+d);o.connect(g).connect(a.destination);o.start(t);o.stop(t+d+.02)}catch(e){}
+// Everything is synthesised with Web Audio. Voices go into OUT (a compressor keeps the mix from clipping),
+// optionally through REV (a small synthetic room). The background groove has its own bus, MUS.
+let AC=null,OUT=null,REV=null,MUS=null,NOISE=null,lastTick=0,sndErr=0;
+function ac(){
+  try{
+    if(!AC){
+      AC=new(window.AudioContext||window.webkitAudioContext)();
+      const comp=AC.createDynamicsCompressor();comp.threshold.value=-15;comp.knee.value=18;comp.ratio.value=5;comp.attack.value=.004;comp.release.value=.2;
+      OUT=AC.createGain();OUT.gain.value=2.4;OUT.connect(comp);comp.connect(AC.destination);
+      const len=AC.sampleRate*1.6|0,ir=AC.createBuffer(2,len,AC.sampleRate);
+      for(let c=0;c<2;c++){const d=ir.getChannelData(c);for(let i=0;i<len;i++)d[i]=(Math.random()*2-1)*Math.pow(1-i/len,2.6)}
+      const conv=AC.createConvolver();conv.buffer=ir;REV=AC.createGain();REV.gain.value=.3;REV.connect(conv);conv.connect(OUT);
+      MUS=AC.createGain();MUS.gain.value=0;MUS.connect(OUT);
+      NOISE=AC.createBuffer(1,AC.sampleRate*2,AC.sampleRate);const nd=NOISE.getChannelData(0);for(let i=0;i<nd.length;i++)nd[i]=Math.random()*2-1;
+    }
+    if(AC.state==='suspended')AC.resume();
+  }catch(e){sndErr++}
+  return AC;
 }
-function tick(){const n=performance.now();if(n-lastTick<45)return;lastTick=n;beep(1500,.025,'square',.025)}
-const fanfare=()=>[523,659,784,1047].forEach((f,i)=>beep(f,.2,'triangle',.08,i*.11));
-const doom=()=>[220,185,147,110].forEach((f,i)=>beep(f,.4,'sawtooth',.045,i*.28));
+const N=n=>440*Math.pow(2,(n-69)/12);   // MIDI note number → Hz
+// One enveloped oscillator note. Options: type, vol, a (attack), to (pitch glides there), det (cents),
+// lp / lpTo / q (low-pass, optionally sweeping), rev (reverb send), when (seconds from now), dest (bus).
+function tone(f,d=.1,o={}){
+  if(S.muted)return;const a=ac();if(!a||!OUT)return;
+  try{
+    const t=a.currentTime+(o.when||0),osc=a.createOscillator(),g=a.createGain(),v=Math.max(.0002,o.vol??.08),at=Math.min(o.a??.004,d*.9);
+    osc.type=o.type||'sine';osc.frequency.setValueAtTime(Math.max(1,f),t);
+    if(o.to)osc.frequency.exponentialRampToValueAtTime(Math.max(1,o.to),t+d);
+    if(o.det)osc.detune.setValueAtTime(o.det,t);
+    g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(v,t+at);g.gain.exponentialRampToValueAtTime(.0001,t+d);
+    let n=osc;
+    if(o.lp){const fl=a.createBiquadFilter();fl.type='lowpass';fl.Q.value=o.q||.8;fl.frequency.setValueAtTime(o.lp,t);if(o.lpTo)fl.frequency.exponentialRampToValueAtTime(o.lpTo,t+d);osc.connect(fl);n=fl}
+    n.connect(g);g.connect(o.dest||OUT);
+    if(o.rev){const s=a.createGain();s.gain.value=o.rev;g.connect(s);s.connect(REV)}
+    osc.start(t);osc.stop(t+d+.05);
+  }catch(e){sndErr++}
+}
+// A burst of filtered noise. Options: type (filter), f / fTo (cutoff, optionally sweeping), q, vol, a, rev, when, dest.
+function noise(d=.1,o={}){
+  if(S.muted)return;const a=ac();if(!a||!OUT)return;
+  try{
+    const t=a.currentTime+(o.when||0),src=a.createBufferSource(),fl=a.createBiquadFilter(),g=a.createGain(),v=Math.max(.0002,o.vol??.1),at=Math.min(o.a??.003,d*.9);
+    src.buffer=NOISE;src.loop=true;fl.type=o.type||'bandpass';fl.Q.value=o.q||.7;fl.frequency.setValueAtTime(o.f||1500,t);if(o.fTo)fl.frequency.exponentialRampToValueAtTime(o.fTo,t+d);
+    g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(v,t+at);g.gain.exponentialRampToValueAtTime(.0001,t+d);
+    src.connect(fl);fl.connect(g);g.connect(o.dest||OUT);
+    if(o.rev){const s=a.createGain();s.gain.value=o.rev;g.connect(s);s.connect(REV)}
+    src.start(t,Math.random()*1.5);src.stop(t+d+.05);
+  }catch(e){sndErr++}
+}
+// The simple calls used all over the game, now with a soft attack, a little room and no harsh edges.
+function beep(f,d=.05,type='square',v=.05,when=0){tone(f,Math.max(d,.03),{type,vol:v,when,rev:.12,lp:type==='square'||type==='sawtooth'?Math.min(9000,Math.max(900,f*5)):0})}
+function noiseBurst(d=.45,v=.25,hp=2500){noise(d,{type:'highpass',f:hp,vol:v*.5,rev:.2})}
+function slide(f0,f1,d,type='sine',v=.08){tone(f0,d,{to:f1,type,vol:v,lp:type==='sawtooth'?2600:0})}
+const SND={
+  click(){noise(.025,{type:'bandpass',f:2600,q:1.4,vol:.035});tone(720,.035,{type:'triangle',vol:.03,to:520})},
+  blip(up=true,step=0){const f=N(72+step);tone(up?f:f*.75,.07,{type:'triangle',vol:.06,to:up?f*1.5:f*.4,rev:.1})},
+  whoosh(up=true,d=.3,v=.06){noise(d,{type:'bandpass',f:up?350:3400,fTo:up?3800:280,q:.9,vol:v*2.2,a:d*.45})},
+  bell(f=1568,v=.06,when=0,d=.8){tone(f,d,{vol:v,when,rev:.45});tone(f*2.76,d*.55,{vol:v*.4,when,rev:.45});tone(f*5.4,d*.25,{vol:v*.16,when})},
+  coin(when=0){SND.bell(1976,.05,when,.45);SND.bell(2637,.055,when+.075,.7)},
+  thud(v=.22,when=0){tone(135,.26,{to:40,vol:v,when});noise(.07,{type:'lowpass',f:320,vol:v*.5,when})},
+  brass(f,d,v=.1,when=0){[-11,0,9].forEach(det=>tone(f,d,{type:'sawtooth',det,vol:v/2.6,when,a:.025,lp:420,lpTo:Math.min(5200,f*7),rev:.3}))},
+  crash(when=0,v=.05){noise(1.3,{type:'highpass',f:5500,vol:v,when,rev:.5})},
+  fanfare(){
+    [[67,0,.14],[72,.14,.14],[76,.28,.14],[79,.42,.62]].forEach(([n,w,d])=>SND.brass(N(n),d,.11,w));
+    [60,64,67,72].forEach(n=>SND.brass(N(n),.7,.06,.42));
+    SND.crash(.42);SND.thud(.2,.42);[0,.14,.28].forEach(w=>noise(.05,{type:'bandpass',f:1800,q:.8,vol:.05,when:w}));
+    [84,88,91].forEach((n,i)=>SND.bell(N(n),.03,.5+i*.09,.6));
+  },
+  doom(){
+    [[50,0],[49,.34],[45,.68]].forEach(([n,w])=>{SND.brass(N(n),.5,.12,w);SND.thud(.2,w)});
+    SND.brass(N(38),1.3,.12,.68);SND.brass(N(39),1.3,.07,.68);noise(1.4,{type:'lowpass',f:180,vol:.1,when:.68,rev:.6});
+  },
+  wah(){   // sad trombone
+    [[63,0],[62,.3],[61,.6],[60,.9]].forEach(([n,w],i)=>tone(N(n),i===3?.75:.27,{type:'sawtooth',vol:.07,when:w,a:.03,lp:1500,lpTo:320,to:i===3?N(n)*.94:0,rev:.25}));
+    SND.thud(.16);
+  },
+  win(n=1){
+    SND.coin();
+    if(n>=2)[72,76,79].forEach((m,i)=>SND.bell(N(m),.045,.12+i*.08,.5));
+    if(n>=5){[84,88,91,96].forEach((m,i)=>SND.bell(N(m),.04,.36+i*.07,.7));SND.crash(.36,.035)}
+    if(n>=10)setTimeout(()=>{SND.fanfare();SND.applause()},350);
+  },
+  motif(kind){   // short stingers for the plain outcomes
+    (kind==='medium'?[[57,0],[60,.12],[56,.26]]:[[72,0],[76,.1],[79,.2]]).forEach(([n,w])=>tone(N(n),.22,{type:'triangle',vol:.07,when:w,rev:.3}));
+    if(kind==='medium')SND.thud(.14,.26);
+  },
+  applause(d=2.4,v=.05){for(let i=0;i<110;i++){const w=Math.random()*d;noise(.035+Math.random()*.03,{type:'bandpass',f:1300+Math.random()*2600,q:1.2,vol:v*2.8*(.35+.65*Math.sin(Math.PI*Math.min(1,w/d*1.15))),when:w})}},
+  card(){noise(.075,{type:'bandpass',f:2400,fTo:5200,q:1.6,vol:.11,a:.012});tone(170,.05,{vol:.07,when:.055})},
+  pop(){tone(380,.1,{to:1050,vol:.08,rev:.15})},
+  boing(){tone(260,.16,{to:640,type:'triangle',vol:.07})},
+  glug(){tone(250+rnd(60),.09,{to:115,vol:.13})},
+  clink(){SND.bell(2349,.045,0,.55);SND.bell(2540,.04,.028,.6)},
+  glass(){noise(.5,{type:'highpass',f:2800,vol:.14,rev:.4});noise(.12,{type:'bandpass',f:900,q:.6,vol:.12});SND.thud(.15);for(let i=0;i<14;i++)tone(2400+Math.random()*4200,.09+Math.random()*.2,{vol:.025,when:.03+Math.random()*.6,rev:.5})},
+  riser(d=2){noise(d,{type:'bandpass',f:260,fTo:7000,q:1.1,vol:.13,a:d*.85});tone(160,d,{to:900,type:'sawtooth',vol:.06,a:d*.8,lp:900,lpTo:4000})},
+  talk(n=4){for(let i=0;i<n;i++)tone(520+rnd(380),.045,{type:'triangle',vol:.035,when:i*.058})},
+  spinStart(){SND.whoosh(true,.5,.07);[60,64,67,72].forEach((m,i)=>tone(N(m),.09,{type:'triangle',vol:.05,when:i*.05,rev:.2}))},
+  next(){SND.whoosh(false,.25,.045);SND.bell(N(81),.04,.1,.5)},
+};
+const fanfare=()=>SND.fanfare(),doom=()=>SND.doom();
+// Wheel tick: a woodblock that drops in pitch and gets a touch louder as the wheel slows (sp runs 1 → 0).
+function tick(slot,sp=.5){const n=performance.now();if(n-lastTick<38)return;lastTick=n;const f=620+sp*780;tone(f,.04,{type:'triangle',vol:.085+(1-sp)*.04,to:f*.62});noise(.012,{type:'highpass',f:4200,vol:.03})}
+// The whirr under a spinning wheel.
+function spinHum(){
+  const off={set(){},stop(){}};if(S.muted)return off;const a=ac();if(!a||!OUT)return off;
+  try{
+    const src=a.createBufferSource(),fl=a.createBiquadFilter(),g=a.createGain();
+    src.buffer=NOISE;src.loop=true;fl.type='bandpass';fl.Q.value=1.6;fl.frequency.value=1900;g.gain.value=.0001;src.connect(fl);fl.connect(g);g.connect(OUT);src.start();
+    return{set(sp){const t=a.currentTime;fl.frequency.setTargetAtTime(260+sp*1700,t,.08);g.gain.setTargetAtTime(.012+sp*.05,t,.08)},stop(){try{g.gain.setTargetAtTime(.0001,a.currentTime,.1);src.stop(a.currentTime+.6)}catch(e){}}};
+  }catch(e){sndErr++;return off}
+}
+// What a landing sounds like for outcomes that have no intro of their own.
+function landSound(key,mult){
+  const o=OUTCOMES[key];if(INTROS[key]&&!reduced)return;
+  if(o.kind==='num')SND.win(o.n*(mult>1?2:1));else if(o.kind==='house')SND.wah();else if(key==='bankrupt')SND.doom();else SND.motif(o.kind);
+}
+// Background groove: a four-bar loop (Am7, Dm7, Fmaj7, E7) at 112 BPM, scheduled a little ahead of time.
+// Level 0 is the lobby version; level 1 adds a four-on-the-floor kick, claps, busier hats and an arpeggio.
+const MUSIC={timer:null,step:0,next:0,level:0,mood:'idle'};
+const CHORDS=[[57,60,64,67],[50,57,60,65],[53,57,60,64],[52,56,59,62]],ROOTS=[45,38,41,40],BASSP=[1,0,0,1,0,0,1,0,0,0,2,0,1,0,0,0],STABP=[0,0,0,1,0,0,1,0,0,0,0,1,0,0,1,0];
+const MOOD={idle:[0,.5],spin:[1,.46],round:[0,.26],hush:[0,.04]};
+const musicOn=()=>!S.muted&&S.music!==false;
+function musicTick(){
+  const a=AC;if(!a||!MUSIC.timer)return;const spb=60/112/4;
+  if(MUSIC.next<a.currentTime-.25)MUSIC.next=a.currentTime+.05;
+  while(MUSIC.next<a.currentTime+.14){
+    const s=MUSIC.step%16,bar=(MUSIC.step>>4)%4,w=MUSIC.next-a.currentTime,L=MUSIC.level,d={when:w,dest:MUS};
+    if(s%8===0||(L&&s%4===0))tone(138,.2,{to:42,vol:L?.26:.2,...d});
+    if(s%4===2)noise(.04,{type:'highpass',f:7600,vol:.03,...d});
+    if(L&&s%2===1)noise(.025,{type:'highpass',f:8200,vol:.014,...d});
+    if(L&&(s===4||s===12))[0,.011,.023].forEach(o=>noise(.07,{type:'bandpass',f:1700,q:.9,vol:.04,when:w+o,dest:MUS}));
+    if(BASSP[s])tone(N(ROOTS[bar]+(BASSP[s]>1?12:0)),spb*1.8,{type:'triangle',vol:.1,lp:520,...d});
+    if(STABP[s])CHORDS[bar].forEach(n=>tone(N(n),spb*2.3,{type:'sawtooth',vol:.017,a:.008,lp:1500,lpTo:420,...d}));
+    if(L&&s%2===0)tone(N(CHORDS[bar][(s>>1)%4]+12),.12,{vol:.022,...d});
+    MUSIC.next+=spb;MUSIC.step++;
+  }
+}
+function musicMood(m){MUSIC.mood=m;MUSIC.level=MOOD[m][0];if(AC&&MUS)MUS.gain.setTargetAtTime(musicOn()?MOOD[m][1]:0,AC.currentTime,.25)}
+function musicStart(m){
+  if(!musicOn())return;const a=ac();if(!a||!MUS)return;
+  if(!MUSIC.timer){MUSIC.step=0;MUSIC.next=a.currentTime+.08;MUSIC.timer=setInterval(musicTick,25)}
+  musicMood(m||MUSIC.mood);
+}
+function musicStop(){clearInterval(MUSIC.timer);MUSIC.timer=null;if(AC&&MUS)MUS.gain.setTargetAtTime(0,AC.currentTime,.1)}
 
 /* ---------- wheel ---------- */
 class Wheel{
@@ -679,7 +813,7 @@ class Wheel{
         const p=Math.min(1,(now-t0)/dur),e=1-Math.pow(1-p,4);
         this.rot=start+(target-start)*e;this.c.style.transform=`rotate(${this.rot}deg)`;
         const i=Math.floor((((-this.rot)%360+360)%360)/ad)%this.slots.length;
-        if(i!==last){last=i;onTick&&onTick(this.slots[i])}
+        if(i!==last){last=i;onTick&&onTick(this.slots[i],Math.pow(1-p,3))}
         if(p<1)requestAnimationFrame(step);else{this.rot=target%360;this.c.style.transform=`rotate(${this.rot}deg)`;res(this.slots[idx])}
       };requestAnimationFrame(step);
     });
@@ -708,8 +842,8 @@ function confetti(){
 function flipCoin(el,front){
   return new Promise(r=>{const d=reduced?.4:1.8;el.style.transition=`transform ${d}s cubic-bezier(.2,.7,.2,1)`;
     requestAnimationFrame(()=>requestAnimationFrame(()=>{el.style.transform=`rotateY(${(reduced?1:6)*360+(front?0:180)}deg)`}));
-    let n=0;const iv=reduced?null:setInterval(()=>{if(++n<10)beep(900+n*40,.03,'square',.02)},140);
-    setTimeout(()=>{clearInterval(iv);beep(880,.15,'triangle',.08);r()},d*1000+60)});
+    SND.bell(2637,.05);let n=0;const iv=reduced?null:setInterval(()=>{if(++n<13){noise(.05,{type:'bandpass',f:1700+n*130,q:3,vol:.04});tone(2100,.03,{vol:.012})}},125);
+    setTimeout(()=>{clearInterval(iv);SND.bell(1760,.07);SND.thud(.14);r()},d*1000+60)});
 }
 
 /* give-out widget */
@@ -722,18 +856,18 @@ function giveUI(box,giver,raw,done,opts={}){
     <div class="give-rows">${os.map(o=>`<div class="give-row"><span>${esc(o.name)}</span><div class="stepper"><button class="sbtn" data-m="${o.id}" aria-label="One less for ${esc(o.name)}">−</button><b>${alloc[o.id]}</b><button class="sbtn" data-p="${o.id}" aria-label="One more for ${esc(o.name)}">+</button></div></div>`).join('')}</div>
     <div class="row"><button class="btn ghost" data-a="rand">Random split</button><button class="btn ghost" data-a="even">Split evenly</button><button class="btn" data-a="done" ${left?'disabled':''}>Hand them out</button></div></div>`};
   box.onclick=e=>{const b=e.target.closest('button');if(!b)return;
-    if(b.dataset.p){if(used()<t)alloc[b.dataset.p]++}
-    else if(b.dataset.m){if(alloc[b.dataset.m]>0)alloc[b.dataset.m]--}
+    if(b.dataset.p){if(used()<t){alloc[b.dataset.p]++;SND.blip(true,Math.min(12,alloc[b.dataset.p]))}}
+    else if(b.dataset.m){if(alloc[b.dataset.m]>0){alloc[b.dataset.m]--;SND.blip(false,alloc[b.dataset.m])}}
     else if(b.dataset.a==='rand'){os.forEach(o=>alloc[o.id]=0);for(let i=0;i<t;i++)alloc[pick(os).id]++}
     else if(b.dataset.a==='even'){os.forEach(o=>alloc[o.id]=Math.floor(t/os.length));shuffle([...os]).slice(0,t%os.length).forEach(o=>alloc[o.id]++)}
-    else if(b.dataset.a==='done'){giver.given+=t;const msgs=os.filter(o=>alloc[o.id]>0).map(o=>drink(o,alloc[o.id],`from ${giver.name}`));box.onclick=null;box.innerHTML='';done(msgs);return}
+    else if(b.dataset.a==='done'){SND.coin();giver.given+=t;const msgs=os.filter(o=>alloc[o.id]>0).map(o=>drink(o,alloc[o.id],`from ${giver.name}`));box.onclick=null;box.innerHTML='';done(msgs);return}
     render()};
   render();
 }
 
 /* modal */
 const modal=$('#modal'),sheet=$('#sheet');
-function openSheet(head,html,foot=''){sheet.innerHTML=head+`<div class="m-body">${html}</div>`+foot;modal.hidden=false;modal.scrollTop=0;return $('.m-body',sheet)}
+function openSheet(head,html,foot=''){SND.whoosh(true,.22,.045);sheet.innerHTML=head+`<div class="m-body">${html}</div>`+foot;modal.hidden=false;modal.scrollTop=0;return $('.m-body',sheet)}
 function closeModal(){modal.hidden=true;sheet.innerHTML='';sheet.classList.remove('wide')}
 const MUG='<svg class="sb-mug" viewBox="0 0 50 52" aria-hidden="true"><path d="M36,17h5a6,6 0 0 1 6,6v9a6,6 0 0 1-6,6h-5" fill="none" stroke="#f4f1ff" stroke-width="4"/><rect x="6" y="7" width="30" height="41" rx="5" fill="rgba(255,255,255,.1)" stroke="#f4f1ff" stroke-width="3"/><rect class="sb-beer" x="9.5" y="12" width="23" height="32.5" rx="2.5" fill="#ffb300"/><rect class="sb-foam" x="9.5" y="9" width="23" height="7" rx="3.5" fill="#ffffff"/></svg>';
 // Everyone who drinks this round, biggest first: mugs slide in, drain, and the sips count up.
@@ -750,12 +884,12 @@ function runSipBoard(root){
   root.querySelectorAll('.sb-row').forEach((row,i)=>{
     const el=$('[data-n]',row),n=+el.dataset.n,dur=Math.min(1400,220+n*150);
     setTimeout(()=>{
-      if(!row.isConnected)return;beep(2300,.05,'triangle',.05);beep(3100,.07,'triangle',.04,.04);
+      if(!row.isConnected)return;SND.clink();
       const t0=performance.now();let shown=0;
       const tickUp=now=>{
         if(!row.isConnected)return;const v=Math.min(n,Math.ceil((now-t0)/dur*n));
-        if(v!==shown){shown=v;el.textContent=v;beep(150+rnd(50),.05,'sine',.12)}
-        if(v<n)requestAnimationFrame(tickUp);else{row.classList.add('done');if(n>=8)beep(70,.25,'sine',.25)}
+        if(v!==shown){shown=v;el.textContent=v;SND.glug()}
+        if(v<n)requestAnimationFrame(tickUp);else{row.classList.add('done');if(n>=8)SND.thud(.25)}
       };requestAnimationFrame(tickUp);
     },i*380+480);
   });
@@ -790,7 +924,7 @@ R.hunt=(b,ctx)=>{
   const traps=[['drink','DRINK BET'],['drink','DRINK BET'],['drink','DRINK BET'],['drink','DRINK BET'],['drink','DRINK BET'],['drink','DRINK BET'],['drink','DRINK BET'],['drink2','DRINK 2× BET'],['drink2','DRINK 2× BET'],['all2','ALL DRINK 2'],['all2','ALL DRINK 2'],['others','OTHERS DRINK BET'],['others','OTHERS DRINK BET'],['finish','FINISH DRINK']];
   const tiles=shuffle([...[1,1,1,1,2,2,2,2,2,2,3,3,3,3,4,4,5,5,10,10,15,20].map(m=>({m})),...traps.map(([t,l])=>({t,l}))]);
   b.innerHTML=`<p class="lead">36 tiles, one pick. Multipliers pay out your bet of ${sips(ctx.bet)}${ctx.mult>1?` × ${ctx.mult} Top Slot`:''}. Traps hit you.</p><div class="hunt">${tiles.map((x,i)=>`<button class="tile" data-i="${i}" aria-label="Tile ${i+1}">?</button>`).join('')}</div><div class="gbox"></div>`;
-  $('.hunt',b).onclick=e=>{const btn=e.target.closest('.tile');if(!btn||btn.disabled)return;const i=+btn.dataset.i,x=tiles[i];
+  $('.hunt',b).onclick=e=>{const btn=e.target.closest('.tile');if(!btn||btn.disabled)return;SND.pop();const i=+btn.dataset.i,x=tiles[i];
     b.querySelectorAll('.tile').forEach((el,j)=>{const y=tiles[j];el.disabled=true;el.classList.add('rv',y.m?'m':'t');el.textContent=y.m?`×${y.m}`:y.l;if(j===i)el.classList.add('pk')});
     const p=ctx.p;
     if(x.m){fanfare();if(x.m>=10)confetti();giveUI($('.gbox',b),p,ctx.bet*x.m*ctx.mult,msgs=>endRound(b,msgs));return}
@@ -842,7 +976,7 @@ R.plinko=(b,ctx)=>{
       if(vn<0){
         pk.vx-=1.52*vn*nx;pk.vy-=1.52*vn*ny;pk.vx+=(Math.random()-.5)*36;
         if(vn<-40){g.hit=clock;for(let i=0;i<4;i++)sparks.push({x:g.x,y:g.y,vx:(Math.random()-.5)*160,vy:-Math.random()*140,life:.6,c:'#2ad4ff'});
-          if(clock-lastPlink>.045){lastPlink=clock;beep(520+(ROWS-g.r)*85,.05,'triangle',.05)}}
+          if(clock-lastPlink>.045){lastPlink=clock;SND.bell(N([84,81,79,76,74,72,69,67,64,62][g.r]),.035,0,.35)}}
       }
     }
     if(pk.y>yDiv){
@@ -947,6 +1081,7 @@ R.crazy=(b,ctx)=>{
       rot=spinT.from+(spinT.to-spinT.from)*e;speed=(rot-before)/Math.max(dt,.001);
       FLAP.forEach((f,i)=>{const s=segAt(f.a,rot);if(s!==flap[i].seg){flap[i].seg=s;flap[i].d=-Math.min(.55,.12+speed*.0012);if(i===pick)tick()}});
       zoom+=((t>.7?1.3:1)-zoom)*Math.min(1,dt*3);
+      if(t>.7&&!spinT.rise){spinT.rise=1;SND.riser(spinT.dur*.3/1000)}
       if(t>.72){beat+=dt;if(beat>.55){beat=0;beep(58,.12,'sine',.16);beep(58,.12,'sine',.1,.17)}}
       if(t>=1){const done=spinT.done;spinT=null;rot=((rot%360)+360)%360;done()}
     }else zoom+=(1-zoom)*Math.min(1,dt*2.5);
@@ -1049,7 +1184,7 @@ R.koh=(b,ctx)=>{
     <div class="prom on" style="text-align:center;align-items:center"><b>${esc(p.name)}, say it out loud first</b><span>“If I pull the King of Hearts, I will…”</span><span class="muted small">Stuck? ${esc(pick(KOH_IDEAS))}</span></div>
     <button class="btn wide" data-draw>${esc(p.name)} draws a card</button>
     ${hist.length?`<ol class="kh" reversed>${hist.slice(-5).reverse().map(h=>`<li>${esc(h.n)} drew ${h.c}</li>`).join('')}</ol>`:''}`;
-    $('[data-draw]',box).onclick=()=>{const c=deck.pop();hist.push({n:p.name,c:cardTxt(c)});beep(500+rnd(300),.05,'triangle',.05);
+    $('[data-draw]',box).onclick=()=>{const c=deck.pop();hist.push({n:p.name,c:cardTxt(c)});SND.card();
       if(c.r===13&&c.s==='♥'){S.koh.push({name:p.name,at:Date.now()});logIt(`${p.name} pulled the King of Hearts`);doom();confetti();
         box.innerHTML=`<div class="koh-reveal">${cardHTML(c,true,true)}<div><span class="eyebrow">The King has spoken</span><h3>${esc(p.name)} pulled the King of Hearts</h3><p class="promise">Do what you just said.</p><p class="muted small">${deck.length} cards were still in the deck.</p></div></div>`;
         endRound(b);return}
@@ -1064,7 +1199,7 @@ R.hilo=(b,ctx)=>{
     <div class="row"><button class="btn cyan" data-g="hi">Higher</button><button class="btn pink" data-g="lo">Lower</button></div>
     <button class="btn ghost wide" data-cash ${streak?'':'disabled'}>${streak?`Cash out ${sips(pot)}`:'Guess once before you can cash out'}</button>`;
     box.querySelectorAll('[data-g]').forEach(btn=>btn.onclick=()=>{if(!deck.length)deck=makeDeck();const n=deck.pop(),ok=btn.dataset.g==='hi'?n.r>c.r:n.r<c.r;
-      if(ok){pot++;streak++;c=n;beep(880,.1,'triangle',.06);render(true)}
+      if(ok){pot++;streak++;c=n;SND.card();SND.bell(N(76+Math.min(12,streak)),.05,.07,.4);render(true)}
       else{doom();box.innerHTML=`<div class="cardrow">${cardHTML(c,false,true)}${cardHTML(n,true,true)}</div>`;endRound(b,[drink(p,pot,'Higher or Lower')],`<p class="verdict">Wrong! Drink the pot</p>`)}});
     $('[data-cash]',box).onclick=()=>{box.innerHTML=`<p class="bigline">Cashed out after ${streak} right</p>`;fanfare();giveUI($('.gbox',b),p,pot,msgs=>endRound(b,msgs))};
   };render(false);
@@ -1081,7 +1216,7 @@ R.bus=(b,ctx)=>{
     box.innerHTML=`<div class="steps">${Q.map((_,i)=>`<i class="${i<s?'on':''}"></i>`).join('')}</div><div class="cardrow">${cards.map((c,i)=>cardHTML(c,i===cards.length-1)).join('')||'<div class="card back"></div>'}</div>
     ${msg?`<p class="note">${esc(msg)}</p>`:''}<p class="stage-q">${q.q}</p><div class="row">${q.opts.map(([l,v])=>`<button class="btn ${v==='red'||v==='♥'||v==='♦'?'pink':'cyan'}" data-a="${v}">${l}</button>`).join('')}</div><p class="muted small" style="margin:0;text-align:center">Attempt ${tries}</p>`;
     box.querySelectorAll('[data-a]').forEach(btn=>btn.onclick=()=>{if(!deck.length)deck=makeDeck();const c=deck.pop();
-      if(q.ok(c,btn.dataset.a,cards)){cards.push(c);msg='';beep(880,.08,'triangle',.06);
+      if(q.ok(c,btn.dataset.a,cards)){cards.push(c);msg='';SND.card();SND.bell(N(72+cards.length*4),.05,.07,.4);
         if(cards.length===4){fanfare();confetti();box.innerHTML=`<div class="cardrow">${cards.map(x=>cardHTML(x)).join('')}</div><p class="bigline">Off the bus after ${tries} ${tries===1?'try':'tries'}</p>`;giveUI($('.gbox',b),p,ctx.bet*2,msgs=>endRound(b,msgs));return}
         render()}
       else{const n=s+1;drink(p,n,'Ride the Bus');doom();msg=`${cardTxt(c)}: wrong at question ${n}. ${p.name} drinks ${sips(n)} and starts over.`;cards=[];tries++;save();renderAll();render()}});
@@ -1229,11 +1364,11 @@ function drawCar(x,c,nose,ground,k,o={}){
 }
 // One continuous engine note: pitch climbs through the gears, drops on every shift.
 function engineSound(){
-  const off={set(){},stop(){}};if(S.muted)return off;const a=ac();if(!a)return off;
+  const off={set(){},stop(){}};if(S.muted)return off;const a=ac();if(!a||!OUT)return off;
   try{
     const o1=a.createOscillator(),o2=a.createOscillator(),f=a.createBiquadFilter(),g=a.createGain();
     o1.type='sawtooth';o2.type='square';f.type='lowpass';f.frequency.value=700;g.gain.value=0;
-    o1.connect(f);o2.connect(f);f.connect(g).connect(a.destination);o1.start();o2.start();
+    o1.connect(f);o2.connect(f);f.connect(g);g.connect(OUT);o1.start();o2.start();
     return{
       set(rpm,vol){const t=a.currentTime,hz=48+rpm*140;o1.frequency.setTargetAtTime(hz,t,.03);o2.frequency.setTargetAtTime(hz*.5+1.5,t,.03);f.frequency.setTargetAtTime(350+rpm*1700,t,.05);g.gain.setTargetAtTime(vol,t,.05)},
       stop(){try{g.gain.setTargetAtTime(0,a.currentTime,.12);o1.stop(a.currentTime+.8);o2.stop(a.currentTime+.8)}catch(e){}}
@@ -1289,20 +1424,20 @@ function dragRace(cv,rs,done){
     if(!go){
       st+=dt*speedUp;
       while(lit<3&&st>=ambers[lit]){lit++;beep(440,.16,'square',.06)}
-      if(st>=greenAt){go=true;beep(880,.5,'square',.07)}
+      if(st>=greenAt){go=true;beep(880,.5,'square',.07);noise(.8,{type:'bandpass',f:1500,fTo:900,q:2.4,vol:.07})}
     }else{
       const lead=Math.max(...rs.map(r=>pos(r,rt)));
       const want=!reduced&&lead>=.86&&rt<win.T+.1?.28:1;
       scale+=(want-scale)*Math.min(1,dt*7);
       const before=rt;rt+=dt*scale*speedUp;
-      if(before<win.T&&rt>=win.T){flash=1;win.car.slow?doom():fanfare()}
+      if(before<win.T&&rt>=win.T){flash=1;win.car.slow?doom():fanfare();SND.applause(2.6,.05)}
       if(scale<.6&&rt<win.T){beat+=dt;if(beat>.6){beat=0;beep(58,.12,'sine',.16);beep(58,.12,'sine',.11,.17)}}
       if(rt>=endT+.9)finish();
     }
     const ps=rs.map(r=>pos(r,rt)),vs=rs.map((r,i)=>(ps[i]-pos(r,rt-.05))/.05),lead=Math.max(...ps),li=ps.indexOf(lead),avgV=vs.reduce((a,b)=>a+b,0)/n;
     if(go&&rt<win.T){
       if(leader===null||rt<1)leader=li;
-      else if(li!==leader&&ps[li]-ps[leader]>.002){leader=li;banner=label(rs[li])+' takes the lead';bannerT=1.7;beep(1250,.07,'triangle',.06)}
+      else if(li!==leader&&ps[li]-ps[leader]>.002){leader=li;banner=label(rs[li])+' takes the lead';bannerT=1.7;SND.blip(true,9)}
     }
     bannerT-=dt;flash=Math.max(0,flash-dt*2.2);
     const u=Math.min(1,lead),gi=Math.max(0,GEARS.findIndex(b=>b>u)-1),rev=go?.42+.58*(u-GEARS[gi])/(GEARS[gi+1]-GEARS[gi]):.25+.4*Math.abs(Math.sin(st*7));
@@ -1433,23 +1568,6 @@ R.drag=(b,ctx)=>{
 };
 
 /* ---------- glass bridge ---------- */
-function noiseBurst(d=.45,v=.25,hp=2500){
-  if(S.muted)return;const a=ac();if(!a)return;
-  try{
-    const n=a.sampleRate*d|0,buf=a.createBuffer(1,n,a.sampleRate),ch=buf.getChannelData(0);
-    for(let i=0;i<n;i++)ch[i]=(Math.random()*2-1)*Math.pow(1-i/n,2.2);
-    const s=a.createBufferSource(),f=a.createBiquadFilter(),g=a.createGain();
-    s.buffer=buf;f.type='highpass';f.frequency.value=hp;g.gain.value=v;s.connect(f);f.connect(g).connect(a.destination);s.start();
-  }catch(e){}
-}
-function slide(f0,f1,d,type='sine',v=.08){
-  if(S.muted)return;const a=ac();if(!a)return;
-  try{
-    const o=a.createOscillator(),g=a.createGain(),t=a.currentTime;
-    o.type=type;o.frequency.setValueAtTime(f0,t);o.frequency.exponentialRampToValueAtTime(f1,t+d);
-    g.gain.setValueAtTime(v,t);g.gain.exponentialRampToValueAtTime(.0001,t+d);o.connect(g).connect(a.destination);o.start(t);o.stop(t+d+.05);
-  }catch(e){}
-}
 R.bridge=(b,ctx)=>{
   const P=S.players.length,N=P<=2?3:Math.min(8,P+1),stake=ctx.bet*ctx.mult,PICK_MS=15000;
   const COLORS=['#ff4d6d','#ffc83a','#2ad4ff','#3fe08f','#b98cff','#ff8a3d','#f4f1ff','#ff7ab8','#7fdcff','#c6ff00'];
@@ -1496,7 +1614,7 @@ R.bridge=(b,ctx)=>{
   function shatter(i,side){
     const q=panel(i,side),x0=Math.min(q[0][0],q[3][0]),x1=Math.max(q[1][0],q[2][0]),s=sc(.04+i*stepLen)*H/300;
     for(let k=0;k<28;k++)shards.push({x:x0+Math.random()*(x1-x0),y:q[2][1]+Math.random()*(q[0][1]-q[2][1]),vx:(Math.random()-.5)*170*s,vy:-Math.random()*130*s,r:Math.random()*6.28,vr:(Math.random()-.5)*14,s:(4+Math.random()*9)*s,life:1.5});
-    noiseBurst();slide(700,80,.9,'sawtooth',.05);for(let k=0;k<7;k++)beep(2200+rnd(2600),.05,'triangle',.03,.04+k*.07);
+    SND.glass();slide(700,80,.9,'sawtooth',.05);
   }
   let last=performance.now(),lastSec=-1,stop=0;
   function frame(now){
@@ -1581,16 +1699,16 @@ R.bridge=(b,ctx)=>{
     await hopTo(a,-.02,0,.3);
     for(let i=0;i<N;i++){
       const sp=steps[i];
-      if(sp.known){beep(420,.04,'triangle',.04);await hopTo(a,zc(i),sp.safe,.24);continue}
+      if(sp.known){SND.boing();await hopTo(a,zc(i),sp.safe,.24);continue}
       st.step=i;const side=await choose(a);
-      beep(420,.05,'triangle',.05);await hopTo(a,zc(i),side,.42);beep(170,.08,'sine',.12);
+      SND.boing();await hopTo(a,zc(i),side,.42);SND.thud(.12);
       // the glass holds its breath: same wait whether it is about to hold or break
       const hold=reduced?.3:.8+Math.random()*.9;st.tense={i,side};
       for(let t=0,g=.2;t<hold-.05;t+=g,g=Math.max(.05,g*.82))beep(260+t*220,.04,'triangle',.05,t);
       await tween(hold,t=>{a.shiver=t});a.shiver=0;st.tense=null;sp.known=true;
       if(side===sp.safe){
         sp.glow=1;tween(.7,t=>{sp.glow=1-t});st.flash={c:'63,224,143',a:.3};st.pop={txt:'SAFE',x:px(side,zc(i)),y:py(zc(i))-U*sc(zc(i))*1.4,c:'#3fe08f',t:0};
-        beep(784,.12,'triangle',.08);beep(1175,.22,'triangle',.08,.1);await wait(.45);continue;
+        SND.bell(N(79),.06);SND.bell(N(86),.06,.1);await wait(.45);continue;
       }
       sp.broken=side;shatter(i,side);st.flash={c:'255,75,92',a:.5};st.shake=1;
       a.state='fell';mark(a,'fell');fallMsgs.push(drink(a.pl,stake,`fell at step ${i+1} of the bridge`));
@@ -1620,7 +1738,7 @@ R.bridge=(b,ctx)=>{
       let first=null;
       for(const a of order){if(await cross(a)){first=a;break}}
       if(first){
-        fanfare();confetti();st.banner={txt:name(first)+' MADE IT',sub:'HANDS OUT '+sips(stake*3).toUpperCase(),c:'#ffc83a',t:0,hold:true};
+        fanfare();SND.applause(2,.045);confetti();st.banner={txt:name(first)+' MADE IT',sub:'HANDS OUT '+sips(stake*3).toUpperCase(),c:'#ffc83a',t:0,hold:true};
         // everyone still waiting knows the way and walks across
         await Promise.all(order.filter(a=>a.state==='wait').map(async(a,k)=>{
           a.state='bridge';await wait(.3+k*.24);await hopTo(a,-.02,0,.2);
@@ -1637,7 +1755,7 @@ R.bridge=(b,ctx)=>{
 R.miss=(b,ctx)=>{doom();b.innerHTML=`<p class="lead">The house wins. ${esc(ctx.p.name)} drank ${sips(ctx.bet)} for nothing.</p>`;endRound(b,[])};
 
 function resolve(key,ctx){
-  roundSips=[];
+  roundSips=[];musicMood('round');
   const o=OUTCOMES[key],st=style(key);
   const head=`<div class="m-head" style="--c:${st.bg};--cf:${st.fg}"><span class="m-kind">${KIND[o.kind]} · ${pct(WEIGHT[key])} · ${esc(ctx.p.name)}</span><h2>${o.kind==='num'?`× ${o.n}`:esc(o.name)}</h2>${ctx.mult>1?`<span class="ts-hit">TOP SLOT ×${ctx.mult}</span>`:''}</div>`;
   const body=openSheet(head,'',`<div class="m-foot"><button class="linkbtn" data-skip>Skip this round</button></div>`);
@@ -1771,7 +1889,7 @@ const WIPES={
   },
 };
 function introSound(key){
-  const at=(ms,fn)=>setTimeout(fn,ms),slam=v=>{beep(60,.35,'sine',v);noiseBurst(.3,v*.9,300)};
+  const at=(ms,fn)=>setTimeout(fn,ms),slam=v=>{SND.thud(v);noise(.35,{type:'lowpass',f:520,vol:v*.45,rev:.4});SND.crash(0,.035)};
   slam(.3);at(300,()=>slam(.28));
   if(key==='crazy'){for(let i=0;i<4;i++)at(i*440,()=>slide(420,1250,.42,'sawtooth',.055));at(300,fanfare)}
   if(key==='coin'){for(let i=0;i<9;i++)at(250+i*170,()=>beep(i%2?2100:1700,.07,'triangle',.06));at(1500,()=>beep(2637,.3,'triangle',.08))}
@@ -1809,7 +1927,7 @@ function outcomeIntro(key){
     requestAnimationFrame(frame);
   }
   requestAnimationFrame(frame);
-  return new Promise(res=>{done=res;setTimeout(()=>{phase='close';pT=performance.now();beep(80,.3,'sine',.28);noiseBurst(.2,.2,200)},I.hold)});
+  return new Promise(res=>{done=res;setTimeout(()=>{phase='close';pT=performance.now();SND.whoosh(true,.45,.08);SND.thud(.26,.38)},I.hold)});
 }
 
 /* ---------- the host ---------- */
@@ -1827,7 +1945,7 @@ const HOST_LINES={
 };
 let hostT;
 function hostSay(text,mood='smile',ms=2600){
-  clearTimeout(hostT);hostEl.dataset.mood=mood;hostSayEl.textContent=text;hostSayEl.hidden=false;
+  clearTimeout(hostT);SND.talk(Math.min(6,2+(text.length>>3)));hostEl.dataset.mood=mood;hostSayEl.textContent=text;hostSayEl.hidden=false;
   hostT=setTimeout(()=>{hostSayEl.hidden=true;hostEl.dataset.mood='smile'},ms);
 }
 function hostPull(){hostEl.classList.remove('pull');void hostEl.offsetWidth;hostEl.classList.add('pull')}
@@ -1843,12 +1961,13 @@ async function spin(){
   if(spinning||S.players.length<2)return;ac();spinning=true;const p=cur(),bet=Math.min(S.bet,S.maxBet);
   if(p.badges.accent){logIt(`${p.name}'s ${p.badges.accent} accent is lifted`);delete p.badges.accent}
   toast(drink(p,bet,'bet'));S.spins++;save();renderAll();
-  hostPull();hostSay(pick(HOST_LINES.spin),'smile',1800);
+  hostPull();hostSay(pick(HOST_LINES.spin),'smile',1800);SND.spinStart();musicStart('spin');const hum=spinHum();
   const idx=rnd(SLOTS.length),key=SLOTS[idx];
-  await wheel.spinTo(idx,reduced?1200:5600,tick);
+  await wheel.spinTo(idx,reduced?1200:5600,(slot,sp)=>{tick(slot,sp);hum.set(sp)});hum.stop();
   const mult=S.top&&S.top.key===key?S.top.mult:1;
   logIt(`${p.name} spun ${oname(key)}${mult>1?` with Top Slot ×${mult}`:''}`);
   if(mult>1)fanfare();
+  landSound(key,mult);musicMood(INTROS[key]&&!reduced?'hush':'round');
   // a beat to see where it landed, and the host's reaction, before the outcome screen
   hostReact(key,mult);
   const openDoors=await outcomeIntro(key);
@@ -1860,12 +1979,12 @@ function nextTurn(){
   if(S.turn===0){S.jackpot++;logIt(`Round complete, the jackpot grows to ${sips(S.jackpot)}`)}
   S.players.forEach(q=>{if(q.badges.ace&&--q.badges.ace<=0){delete q.badges.ace;logIt(`${q.name} is no longer the Ace`)}});
   newTop();save();renderAll();wheel.hl=S.top.key;wheel.draw();
-  hostSay(pick(HOST_LINES.turn)(cur().name),'smile',2400);
+  hostSay(pick(HOST_LINES.turn)(cur().name),'smile',2400);SND.next();musicMood('idle');
 }
 
 /* ---------- rendering ---------- */
 function renderAll(){
-  $('#jpVal').textContent=S.jackpot;$('#muteBtn').textContent=S.muted?'Sound off':'Sound on';
+  $('#jpVal').textContent=S.jackpot;$('#muteBtn').textContent=S.muted?'Muted':S.music!==false?'Music on':'Sound only';
   if(!S.started||S.players.length<2)return;
   const p=cur();
   if(S.top){const st=style(S.top.key);$('#topSlot').innerHTML=`<span class="lbl">TOP SLOT</span><span class="chip" style="background:${st.bg};color:${st.fg}">${esc(oname(S.top.key))}</span><span class="mult">×${S.top.mult}</span>`}
@@ -1874,8 +1993,8 @@ function renderAll(){
    <div><span class="eyebrow">Bet</span><div class="bet"><button class="rbtn" id="betMinus" aria-label="Lower bet" ${bet<=1||spinning?'disabled':''}>−</button><b>${bet}</b><span>${bet===1?'sip':'sips'}</span><button class="rbtn" id="betPlus" aria-label="Raise bet" ${bet>=S.maxBet||spinning?'disabled':''}>+</button></div></div>
    <button class="btn spin" id="spinBtn" ${spinning?'disabled':''}>${spinning?'Spinning…':`Drink ${bet} &amp; spin`}</button>
    <p class="muted small" style="margin:0">Drink your bet, then spin. A number pays out bet × number for you to hand out, MISS pays nothing. Specials hit you; if they need a second player, the wheel picks one.</p>`;
-  $('#betMinus').onclick=()=>{S.bet=Math.max(1,bet-1);save();renderAll()};
-  $('#betPlus').onclick=()=>{S.bet=Math.min(S.maxBet,bet+1);save();renderAll()};
+  $('#betMinus').onclick=()=>{S.bet=Math.max(1,bet-1);SND.blip(false,S.bet);save();renderAll()};
+  $('#betPlus').onclick=()=>{S.bet=Math.min(S.maxBet,bet+1);SND.blip(true,S.bet);save();renderAll()};
   $('#spinBtn').onclick=spin;
   $('#players').innerHTML=S.players.map(q=>{
     const bd=[];if(q.badges.ace)bd.push(`<span class="badge ace">Ace ×2 · ${Math.min(3,q.badges.ace)} left</span>`);
@@ -1891,7 +2010,7 @@ function renderAll(){
   });
   $('#log').innerHTML=S.log.length?`<ul class="loglist">${S.log.slice(0,40).map(l=>`<li><time>${new Date(l.at).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}</time>${esc(l.t)}</li>`).join('')}</ul>`:'<p class="empty">Every sip shows up here.</p>';
 }
-$('#players').onclick=e=>{const b=e.target.closest('[data-plus]');if(!b)return;toast(drink(P(+b.dataset.plus),1,'penalty'));save();renderAll()};
+$('#players').onclick=e=>{const b=e.target.closest('[data-plus]');if(!b)return;SND.glug();toast(drink(P(+b.dataset.plus),1,'penalty'));save();renderAll()};
 $('#rules').onclick=e=>{const b=e.target.closest('[data-rm]');if(!b)return;S.rules.splice(+b.dataset.rm,1);save();renderAll()};
 
 function renderOdds(){
@@ -1929,8 +2048,8 @@ function renderSetup(){
       const ci=S.players.findIndex(p=>p.id===curId);S.turn=ci>=0?ci:0;
       const num=(id,lo,hi,d)=>{const v=parseInt($(id,box).value,10);return isNaN(v)?d:Math.max(lo,Math.min(hi,v))};
       S.maxBet=num('#sMax',1,20,5);S.cap=num('#sCap',5,200,30);S.mercy=num('#sMercy',5,100,20);S.bet=Math.min(S.bet,S.maxBet);
-      if(!S.started){S.started=true;logIt(`Game on with ${S.players.map(p=>p.name).join(', ')}`)}
-      if(!S.top)newTop();save();show();};
+      if(!S.started){S.started=true;logIt(`Game on with ${S.players.map(p=>p.name).join(', ')}`);SND.fanfare()}
+      if(!S.top)newTop();save();show();musicStart('idle');};
     const rb=$('#resetBtn',box);if(rb)rb.onclick=()=>{if(!confirmReset){confirmReset=true;draw();return}const m=S.muted;S=fresh();S.muted=m;save();show()};
   };draw();
 }
@@ -1943,7 +2062,13 @@ function show(){
 }
 let showSettings=false;
 $('#setBtn').onclick=()=>{showSettings=true;show();showSettings=false};
-$('#muteBtn').onclick=()=>{S.muted=!S.muted;save();if(!S.muted)beep(880,.08,'triangle',.06);renderAll()};
+// Sound button cycles: sound with music → sound only → muted.
+$('#muteBtn').onclick=()=>{
+  if(S.muted){S.muted=false;S.music=true}else if(S.music!==false)S.music=false;else S.muted=true;
+  save();if(musicOn())musicStart();else musicStop();if(!S.muted)SND.blip(true,4);renderAll();
+};
+// Every button press gets a soft click, and the first one in a running game starts the music.
+document.addEventListener('click',e=>{const btn=e.target.closest('button');if(!btn||btn.disabled)return;SND.click();if(S.started&&!$('#game').hidden)musicStart()},true);
 
 $('#statsBtn').onclick=()=>{
   const s=[...S.players].sort((a,b)=>b.drunk-a.drunk);
